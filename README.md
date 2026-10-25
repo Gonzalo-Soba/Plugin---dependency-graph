@@ -75,6 +75,8 @@ Jugadores: **A** y **B**.
 - [ ] **Interfaz: permisos.** B no ve "Borrar" en una tarea de A; A como op sí. B ve "Asignarme" en una tarea libre y no lo ve si la tiene otra persona; A como op ve "Reasignarme".
 - [ ] **Interfaz: ventana vieja.** A abre la ficha de una tarea y la deja abierta; B la borra con `/tarea borrar`. Cuando A toca cualquier botón, ve "Esa tarea ya no existe." y vuelve a la lista, sin errores en el log.
 
+- [ ] **Atajos.** En Opciones → Controles, asignar una tecla a "Acciones rápidas". Al apretarla se abre "Tareas del servidor" y "Abrir lista" muestra la lista. En el menú de pausa (Esc) aparece el botón "Tareas del servidor" y hace lo mismo. `/tareas` sigue funcionando.
+
 Si algo falla, guardá `run/logs/latest.log`.
 
 ## Datos
@@ -85,7 +87,7 @@ Si el archivo está dañado o tiene datos inválidos (por ejemplo, un ciclo de d
 
 ## Interfaz
 
-`/tareas` abre la lista de tareas en una ventana del juego. Cada tarea abre su ficha, con botones para asignarse, soltar, resolver, agregar o quitar dependencias, editar y borrar. Cada botón aparece solo si quien mira puede usarlo.
+`/tareas` abre la lista de tareas en una ventana del juego. Hay dos atajos más, sin escribir comandos (ver [Atajos](#atajos)). Cada tarea abre su ficha, con botones para asignarse, soltar, resolver, agregar o quitar dependencias, editar y borrar. Cada botón aparece solo si quien mira puede usarlo.
 
 - **Orden de la lista:** primero las disponibles (todas sus dependencias resueltas), después las bloqueadas y al final las resueltas.
 - **Nueva tarea:** el ícono es el ítem que tenés en la mano al tocar «Crear».
@@ -93,6 +95,17 @@ Si el archivo está dañado o tiene datos inválidos (por ejemplo, un ciclo de d
 - **Ventanas viejas:** si alguien cambia o borra una tarea mientras otra persona tiene su ficha abierta, los botones vuelven a comprobar todo al tocarse. Cada botón sirve una sola vez y vence a los 5 minutos.
 
 Los comandos `/tarea` siguen disponibles como alternativa, por ejemplo desde la consola.
+
+### Atajos
+
+Además de `/tareas`, la interfaz se abre desde:
+
+- **La tecla de acciones rápidas** del juego (se asigna en Opciones → Controles → "Acciones rápidas").
+- **El botón "Tareas del servidor" del menú de pausa** (Esc).
+
+Los dos abren primero una ventana chica con el botón **Abrir lista**, que lleva a la misma lista que `/tareas`. Ese paso intermedio es necesario porque la ventana del atajo se registra al arrancar el servidor y no puede mostrar las tareas del momento.
+
+> Si otro plugin o datapack también agrega acciones rápidas, la tecla muestra una lista para elegir entre ellas en lugar de abrir la de tareas directamente. Lo mismo pasa con varios botones en el menú de pausa. `/tareas` funciona siempre igual.
 
 ## Comandos
 
