@@ -75,7 +75,8 @@ Jugadores: **A** y **B**.
 - [ ] **Interfaz: permisos.** B no ve "Borrar" en una tarea de A; A como op sí. B ve "Asignarme" en una tarea libre y no lo ve si la tiene otra persona; A como op ve "Reasignarme".
 - [ ] **Interfaz: ventana vieja.** A abre la ficha de una tarea y la deja abierta; B la borra con `/tarea borrar`. Cuando A toca cualquier botón, ve "Esa tarea ya no existe." y vuelve a la lista, sin errores en el log.
 
-- [ ] **Atajos.** En Opciones → Controles, asignar una tecla a "Acciones rápidas". Al apretarla se abre "Tareas del servidor" y "Abrir lista" muestra la lista. En el menú de pausa (Esc) aparece el botón "Tareas del servidor" y hace lo mismo. `/tareas` sigue funcionando.
+- [ ] **Atajos.** Apretar **G** (acciones rápidas) abre "Tareas del servidor" y "Abrir lista" muestra la lista. En el menú de pausa (Esc) aparece el botón "Tareas del servidor" y hace lo mismo. `/tareas` sigue funcionando.
+- [ ] **Cerrar sin espera.** En la lista, "Cerrar" vuelve al juego al instante, sin la pantalla "Waiting for Server".
 
 Si algo falla, guardá `run/logs/latest.log`.
 
@@ -100,7 +101,7 @@ Los comandos `/tarea` siguen disponibles como alternativa, por ejemplo desde la 
 
 Además de `/tareas`, la interfaz se abre desde:
 
-- **La tecla de acciones rápidas** del juego (se asigna en Opciones → Controles → "Acciones rápidas").
+- **La tecla de acciones rápidas** del juego: **G** por defecto, se puede cambiar en Opciones → Controles.
 - **El botón "Tareas del servidor" del menú de pausa** (Esc).
 
 Los dos abren primero una ventana chica con el botón **Abrir lista**, que lleva a la misma lista que `/tareas`. Ese paso intermedio es necesario porque la ventana del atajo se registra al arrancar el servidor y no puede mostrar las tareas del momento.

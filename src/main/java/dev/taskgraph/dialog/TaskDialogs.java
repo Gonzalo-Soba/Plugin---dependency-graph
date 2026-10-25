@@ -106,7 +106,10 @@ public final class TaskDialogs {
         show(player, Component.text("Tareas del servidor"), body, List.of(),
                 DialogType.multiAction(buttons)
                         .columns(LIST_COLUMNS)
-                        .exitAction(button(Component.text("Cerrar"), null, ACTION_BUTTON_WIDTH, onClick(Player::closeDialog)))
+                        // closeDialog() doesn't dismiss the client's "waiting for server" screen that follows the
+                        // click (it only closes dialog screens), leaving it up until it times out. closeInventory()
+                        // closes whatever screen is open.
+                        .exitAction(button(Component.text("Cerrar"), null, ACTION_BUTTON_WIDTH, onClick(Player::closeInventory)))
                         .build());
     }
 
