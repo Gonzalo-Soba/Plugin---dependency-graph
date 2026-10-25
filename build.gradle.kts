@@ -12,6 +12,8 @@ val junitVersion = "6.1.3"
 val gsonVersion = "2.14.0"
 // Adventure version exposed by paper-api; only used to fetch its sources for API lookups.
 val adventureVersion = "5.2.0"
+// Brigadier version exposed by paper-api; only used to fetch its sources for API lookups.
+val brigadierVersion = "1.3.11"
 
 repositories {
     mavenCentral()
@@ -35,6 +37,7 @@ dependencies {
     apiSources("com.frengor:ultimateadvancementapi:$uaapiVersion:sources")
     apiSources("net.kyori:adventure-api:$adventureVersion:sources")
     apiSources("net.kyori:adventure-text-serializer-legacy:$adventureVersion:sources")
+    apiSources("com.mojang:brigadier:$brigadierVersion:sources")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
