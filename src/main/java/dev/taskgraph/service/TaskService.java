@@ -3,7 +3,7 @@ package dev.taskgraph.service;
 import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;
 import dev.taskgraph.advancement.ProgressSynchronizer;
 import dev.taskgraph.advancement.TaskTabRenderer;
-import dev.taskgraph.graph.Assignee;
+import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.storage.JsonTaskStore;
@@ -56,8 +56,9 @@ public final class TaskService {
         return graph.copy();
     }
 
-    public Task create(String title, String icon) {
-        return apply(next -> next.create(title, icon));
+    /** @param creator player creating the task, or {@code null} for the console */
+    public Task create(String title, String icon, PlayerRef creator) {
+        return apply(next -> next.create(title, icon, creator));
     }
 
     public Task rename(String id, String newTitle) {
@@ -72,8 +73,13 @@ public final class TaskService {
         return apply(next -> next.addDependency(id, dependencyId));
     }
 
-    public Task assign(String id, Assignee assignee) {
-        return apply(next -> next.assign(id, assignee));
+    /** @param replaceOther whether a task assigned to someone else may be taken over (admin reassignment) */
+    public Task assign(String id, PlayerRef assignee, boolean replaceOther) {
+        return apply(next -> next.assign(id, assignee, replaceOther));
+    }
+
+    public Task unassign(String id) {
+        return apply(next -> next.unassign(id));
     }
 
     public Task resolve(String id) {

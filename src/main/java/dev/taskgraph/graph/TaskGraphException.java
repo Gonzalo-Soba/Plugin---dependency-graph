@@ -18,6 +18,8 @@ public final class TaskGraphException extends RuntimeException {
         DUPLICATE_DEPENDENCY,
         CYCLE,
         RESOLVED_TASK_DEPENDENCY,
+        ALREADY_ASSIGNED,
+        NOT_ASSIGNED,
         ALREADY_RESOLVED,
         UNRESOLVED_DEPENDENCIES,
         HAS_DEPENDENTS
