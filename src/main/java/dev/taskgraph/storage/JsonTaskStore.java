@@ -52,7 +52,9 @@ public final class JsonTaskStore {
             if (stored.version() != FORMAT_VERSION) {
                 throw new TaskStoreException("Unsupported format version " + stored.version() + " in " + file, null);
             }
-            return TaskGraph.of(stored.tasks() == null ? List.of() : stored.tasks());
+            return TaskGraph.of(
+                    stored.tasks() == null ? List.of() : stored.tasks(),
+                    stored.removedIds() == null ? List.of() : stored.removedIds());
         } catch (IOException | JsonParseException | TaskGraphException exception) {
             throw new TaskStoreException("Could not load tasks from " + file, exception);
         }
@@ -70,7 +72,7 @@ public final class JsonTaskStore {
                 Files.createDirectories(parent);
             }
             try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
-                GSON.toJson(new StoredGraph(FORMAT_VERSION, graph.tasks()), writer);
+                GSON.toJson(new StoredGraph(FORMAT_VERSION, graph.tasks(), List.copyOf(graph.removedIds())), writer);
             }
             try {
                 Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -82,6 +84,6 @@ public final class JsonTaskStore {
         }
     }
 
-    private record StoredGraph(int version, List<Task> tasks) {
+    private record StoredGraph(int version, List<Task> tasks, List<String> removedIds) {
     }
 }

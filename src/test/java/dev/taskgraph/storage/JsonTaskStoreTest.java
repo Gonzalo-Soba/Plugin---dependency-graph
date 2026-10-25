@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,6 +67,17 @@ class JsonTaskStoreTest {
         TaskGraph loaded = store.load();
 
         assertEquals(original.tasks(), loaded.tasks());
+    }
+
+    @Test
+    void roundTripKeepsRemovedIds() {
+        TaskGraph original = sampleGraph();
+        original.create("old", "Vieja", "minecraft:stone");
+        original.remove("old");
+
+        store.save(original);
+
+        assertEquals(Set.of("old"), store.load().removedIds());
     }
 
     @Test

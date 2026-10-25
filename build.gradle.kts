@@ -10,6 +10,8 @@ val uaapiVersion = "3.0.0-beta-4"
 val junitVersion = "6.1.3"
 // Must match the Gson version exposed by paper-api, which provides it at runtime.
 val gsonVersion = "2.14.0"
+// Adventure version exposed by paper-api; only used to fetch its sources for API lookups.
+val adventureVersion = "5.2.0"
 
 repositories {
     mavenCentral()
@@ -31,6 +33,8 @@ dependencies {
 
     apiSources("io.papermc.paper:paper-api:$paperVersion:sources")
     apiSources("com.frengor:ultimateadvancementapi:$uaapiVersion:sources")
+    apiSources("net.kyori:adventure-api:$adventureVersion:sources")
+    apiSources("net.kyori:adventure-text-serializer-legacy:$adventureVersion:sources")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -46,6 +50,7 @@ java {
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(25)
+    options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Xlint:removal"))
 }
 
 tasks.processResources {
