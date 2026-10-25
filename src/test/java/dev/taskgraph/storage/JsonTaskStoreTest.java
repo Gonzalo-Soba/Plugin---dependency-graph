@@ -4,6 +4,7 @@ import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.graph.TaskGraphException;
+import dev.taskgraph.graph.TaskStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -47,6 +49,16 @@ class JsonTaskStoreTest {
         graph.assign(stone.id(), new PlayerRef(UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e"), "Steve"));
         graph.resolve(wood.id());
         return graph;
+    }
+
+    @Test
+    void devServerSampleWithThirtyTasksIsValid() {
+        // Tests run from the project directory, where dev-server/ lives.
+        TaskGraph sample = new JsonTaskStore(Path.of("dev-server", "samples", "tasks-30.json")).load();
+
+        assertEquals(30, sample.size());
+        assertEquals(Set.of(TaskStatus.values()),
+                sample.tasks().stream().map(task -> sample.status(task.id())).collect(Collectors.toSet()));
     }
 
     @Test

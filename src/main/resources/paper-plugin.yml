@@ -1,6 +1,8 @@
 name: TaskGraph
 version: '${version}'
 main: dev.taskgraph.TaskGraphPlugin
+# Experimental Paper API: registers the quick actions / pause menu dialog. See TaskGraphBootstrap.
+bootstrapper: dev.taskgraph.TaskGraphBootstrap
 description: Communal task dependency graph shown in the vanilla advancements screen
 api-version: '26.3'
 

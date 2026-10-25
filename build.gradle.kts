@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dev.taskgraph"
-version = "0.1.0"
+version = "0.2.0"
 
 // The dev server runs the same Paper build the plugin compiles against.
 val minecraftVersion = "26.3"
@@ -80,7 +80,10 @@ tasks.register<Sync>("downloadApiSources") {
 
 // Seeds the local test server with dev-server/ files. Existing files are kept, so local edits survive.
 val prepareDevServer = tasks.register<Copy>("prepareDevServer") {
-    from(layout.projectDirectory.dir("dev-server"))
+    from(layout.projectDirectory.dir("dev-server")) {
+        // Sample data is copied by hand when a test needs it (see README).
+        exclude("samples/**")
+    }
     into(layout.projectDirectory.dir("run"))
     eachFile {
         if (destinationDir.resolve(path).exists()) {

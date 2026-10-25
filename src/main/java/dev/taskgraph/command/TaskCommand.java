@@ -6,57 +6,51 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import dev.taskgraph.action.ActionResult;
+import dev.taskgraph.action.TaskActions;
+import dev.taskgraph.action.TaskTexts;
 import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
-import dev.taskgraph.graph.TaskGraphException;
-import dev.taskgraph.graph.TaskPermissions;
 import dev.taskgraph.graph.TaskPermissions.Actor;
 import dev.taskgraph.graph.Titles;
 import dev.taskgraph.service.TaskService;
-import dev.taskgraph.storage.TaskStoreException;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * {@code /tarea} and its subcommands. Players refer to tasks by title; internal ids never show up here.
  * The last argument of every subcommand is greedy, so it needs no quotes. Earlier arguments use
  * Brigadier quoted strings, which suggestions quote automatically when the title has spaces or accents.
- * Every change goes through {@link TaskService}, which saves the graph and rebuilds the advancement tab.
+ * This class only parses arguments and styles results: rules, permissions and messages live in {@link TaskActions}.
  */
 public final class TaskCommand {
 
     public static final String NAME = "tarea";
     public static final String DESCRIPTION = "Tareas comunales del servidor";
-    /** Declared in paper-plugin.yml; granted to operators by default. The console always has it. */
-    public static final String ADMIN_PERMISSION = "taskgraph.admin";
 
     private static final String TASK = "tarea";
     private static final String DEPENDENCY = "dependencia";
     private static final String TITLE = "titulo";
     private static final String NEW_TITLE = "nuevoTitulo";
     private static final String TEXT = "texto";
-    private static final String FALLBACK_ICON = "minecraft:paper";
 
     private final TaskService service;
-    private final Logger logger;
+    private final TaskActions actions;
 
-    public TaskCommand(TaskService service, Logger logger) {
+    /** @param service read-only queries (suggestions, info); changes go through {@code actions} */
+    public TaskCommand(TaskService service, TaskActions actions) {
         this.service = service;
-        this.logger = logger;
+        this.actions = actions;
     }
 
     public LiteralCommandNode<CommandSourceStack> build() {
@@ -76,6 +70,11 @@ public final class TaskCommand {
                 .then(Commands.literal("depende")
                         .then(quotedTask(TASK)
                                 .then(lastTask(DEPENDENCY).executes(this::addDependency))))
+                .then(Commands.literal("quitardep")
+                        .then(quotedTask(TASK)
+                                .then(Commands.argument(DEPENDENCY, StringArgumentType.greedyString())
+                                        .suggests(dependenciesOfTask())
+                                        .executes(this::removeDependency))))
                 .then(Commands.literal("asignar")
                         .then(lastTask(TASK).executes(this::assign)))
                 .then(Commands.literal("soltar")
@@ -111,6 +110,25 @@ public final class TaskCommand {
         };
     }
 
+    /** Suggests only the dependencies of the task typed in the previous argument. */
+    private SuggestionProvider<CommandSourceStack> dependenciesOfTask() {
+        return (context, builder) -> {
+            Optional<Task> task;
+            try {
+                task = actions.findByTitle(unquote(context.getArgument(TASK, String.class)));
+            } catch (IllegalArgumentException exception) {
+                task = Optional.empty();
+            }
+            String typed = Titles.key(unquote(builder.getRemaining()));
+            task.ifPresent(found -> found.dependencies().stream()
+                    .flatMap(id -> service.task(id).stream())
+                    .map(Task::title)
+                    .filter(title -> Titles.key(title).startsWith(typed))
+                    .forEach(builder::suggest));
+            return builder.buildFuture();
+        };
+    }
+
     private int help(CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
         sender.sendMessage(Component.text("Comandos de tareas:", NamedTextColor.GOLD));
@@ -119,6 +137,7 @@ public final class TaskCommand {
                 "renombrar \"<título>\" <nuevo título>",
                 "desc \"<título>\" <texto>",
                 "depende \"<título>\" <dependencia>",
+                "quitardep \"<título>\" <dependencia>",
                 "asignar <título>",
                 "soltar <título> — deja de estar asignada a vos",
                 "resolver <título>",
@@ -137,179 +156,111 @@ public final class TaskCommand {
             return fail(sender, "Solo un jugador puede crear tareas: el ícono es el ítem que tiene en la mano.");
         }
         String title = unquote(StringArgumentType.getString(context, TITLE));
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        String icon = hand.isEmpty() ? FALLBACK_ICON : hand.getType().getKey().asString();
-        return run(sender, () -> {
-            Task task = service.create(title, icon, playerRef(player));
-            succeed(sender, "Tarea " + quoted(task.title()) + " creada.");
-            if (hand.isEmpty()) {
-                sender.sendMessage(Component.text("No tenías nada en la mano, así que el ícono es papel.", NamedTextColor.GRAY));
-            }
-        });
+        return report(sender, actions.create(Senders.actor(sender), title, Senders.iconInHand(player), Senders.handIsEmpty(player)));
     }
 
     private int rename(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
         String newTitle = unquote(StringArgumentType.getString(context, NEW_TITLE));
-        return withTask(context, TASK, task -> {
-            Task renamed = service.rename(task.id(), newTitle);
-            succeed(sender, quoted(task.title()) + " ahora se llama " + quoted(renamed.title()) + ".");
-        });
+        return withTask(context, TASK, (actor, task) -> actions.rename(actor, task.id(), newTitle));
     }
 
     private int describe(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
         String text = StringArgumentType.getString(context, TEXT);
-        return withTask(context, TASK, task -> {
-            service.describe(task.id(), text);
-            succeed(sender, "Descripción de " + quoted(task.title()) + " actualizada.");
-        });
+        return withTask(context, TASK, (actor, task) -> actions.describe(actor, task.id(), text));
     }
 
     private int addDependency(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
-        return withTask(context, TASK, task -> withTaskOrFail(context, DEPENDENCY, dependency -> {
-            Task updated = service.addDependency(task.id(), dependency.id());
-            boolean visualParent = updated.dependencies().size() == 1;
-            succeed(sender, quoted(task.title()) + " ahora depende de " + quoted(dependency.title())
-                    + (visualParent ? "." : " (se muestra en \"También requiere\")."));
-        }));
+        return withTask(context, TASK, (actor, task) -> {
+            Optional<Task> dependency = lookup(context, DEPENDENCY);
+            return dependency.isEmpty()
+                    ? unknown(context, DEPENDENCY)
+                    : actions.addDependency(actor, task.id(), dependency.get().id());
+        });
+    }
+
+    private int removeDependency(CommandContext<CommandSourceStack> context) {
+        return withTask(context, TASK, (actor, task) -> {
+            Optional<Task> dependency = lookup(context, DEPENDENCY);
+            return dependency.isEmpty()
+                    ? unknown(context, DEPENDENCY)
+                    : actions.removeDependency(actor, task.id(), dependency.get().id());
+        });
     }
 
     private int assign(CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
-        if (!(sender instanceof Player player)) {
+        if (!(sender instanceof Player)) {
             return fail(sender, "Solo un jugador puede asignarse una tarea.");
         }
-        Actor actor = actor(sender);
-        return withTask(context, TASK, task -> {
-            if (!TaskPermissions.canAssignToSelf(task, actor)) {
-                String current = task.assigneeOptional().map(PlayerRef::name).orElse("otra persona");
-                throw new DeniedException(quoted(task.title()) + " ya está asignada a " + current
-                        + ": tiene que soltarla o un admin la reasigna.");
-            }
-            service.assign(task.id(), playerRef(player), actor.admin());
-            succeed(sender, "Te asignaste la tarea " + quoted(task.title()) + ".");
-            // task is the state before the change, so this reports who had it.
-            task.assigneeOptional()
-                    .filter(current -> !current.is(player.getUniqueId()))
-                    .ifPresent(current -> sender.sendMessage(Component.text(
-                            "Antes estaba asignada a " + current.name() + ".", NamedTextColor.GRAY)));
-        });
+        return withTask(context, TASK, (actor, task) -> actions.assignToSelf(actor, task.id()));
     }
 
     private int release(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
-        Actor actor = actor(sender);
-        return withTask(context, TASK, task -> {
-            if (task.assigneeOptional().isPresent() && !TaskPermissions.canRelease(task, actor)) {
-                throw new DeniedException("Solo " + task.assignee().name() + " o un admin pueden soltar "
-                        + quoted(task.title()) + ".");
-            }
-            service.unassign(task.id());
-            boolean own = actor.uuid() != null && task.assignee().is(actor.uuid());
-            succeed(sender, own
-                    ? "Soltaste la tarea " + quoted(task.title()) + "."
-                    : quoted(task.title()) + " ya no está asignada a " + task.assignee().name() + ".");
-        });
+        return withTask(context, TASK, (actor, task) -> actions.release(actor, task.id()));
     }
 
     private int resolve(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
-        return withTask(context, TASK, task -> {
-            service.resolve(task.id());
-            Bukkit.getServer().broadcast(Component.text(
-                    "✔ " + sender.getName() + " resolvió la tarea " + quoted(task.title()), NamedTextColor.GREEN));
-        });
+        return withTask(context, TASK, (actor, task) -> actions.resolve(actor, task.id()));
     }
 
     private int info(CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
+        Optional<Task> found = lookup(context, TASK);
+        if (found.isEmpty()) {
+            return report(sender, unknown(context, TASK));
+        }
+        Task task = found.get();
         TaskGraph graph = service.snapshot();
-        return withTask(context, TASK, task -> {
-            sender.sendMessage(Component.text(task.title(), NamedTextColor.GOLD));
-            if (!task.description().isEmpty()) {
-                sender.sendMessage(Component.text(task.description(), NamedTextColor.GRAY));
-            }
-            sender.sendMessage(Component.text("Estado: " + (task.resolved() ? "resuelta" : "pendiente"),
-                    task.resolved() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
-            sender.sendMessage(Component.text("Creada por: "
-                    + task.creatorOptional().map(PlayerRef::name).orElse("desconocido"), NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("Asignada a: "
-                    + task.assigneeOptional().map(PlayerRef::name).orElse("nadie"), NamedTextColor.AQUA));
-            sender.sendMessage(Component.text("Depende de: " + describeTasks(graph, task.dependencies()), NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("La necesitan: " + describeTasks(graph, graph.dependents(task.id())), NamedTextColor.GRAY));
-            sender.sendMessage(Component.text("Ícono: " + task.icon(), NamedTextColor.DARK_GRAY));
-        });
+        sender.sendMessage(Component.text(task.title(), NamedTextColor.GOLD));
+        if (!task.description().isEmpty()) {
+            sender.sendMessage(Component.text(task.description(), NamedTextColor.GRAY));
+        }
+        sender.sendMessage(Component.text("Estado: " + (task.resolved() ? "resuelta" : "pendiente"),
+                task.resolved() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("Creada por: "
+                + task.creatorOptional().map(PlayerRef::name).orElse("desconocido"), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Asignada a: "
+                + task.assigneeOptional().map(PlayerRef::name).orElse("nadie"), NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("Depende de: " + TaskTexts.taskList(graph, task.dependencies()), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("La necesitan: " + TaskTexts.taskList(graph, graph.dependents(task.id())), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Ícono: " + task.icon(), NamedTextColor.DARK_GRAY));
+        return Command.SINGLE_SUCCESS;
     }
 
     private int remove(CommandContext<CommandSourceStack> context) {
-        CommandSender sender = context.getSource().getSender();
-        Actor actor = actor(sender);
-        return withTask(context, TASK, task -> {
-            if (!TaskPermissions.canRemove(task, actor)) {
-                throw new DeniedException(task.creatorOptional()
-                        .map(creator -> "Solo " + creator.name() + " (quien la creó) o un admin pueden borrar " + quoted(task.title()) + ".")
-                        .orElse("Solo un admin puede borrar " + quoted(task.title()) + "."));
-            }
-            service.remove(task.id());
-            succeed(sender, "Tarea " + quoted(task.title()) + " borrada.");
-        });
+        return withTask(context, TASK, (actor, task) -> actions.remove(actor, task.id()));
     }
 
-    /** Looks up the task named by the argument and runs the action, reporting unknown titles and rejections. */
-    private int withTask(CommandContext<CommandSourceStack> context, String argument, Consumer<Task> action) {
+    /** Looks up the task named by the argument, runs the action and reports its result to the sender. */
+    private int withTask(CommandContext<CommandSourceStack> context, String argument,
+                         BiFunction<Actor, Task, ActionResult> action) {
         CommandSender sender = context.getSource().getSender();
-        return run(sender, () -> withTaskOrFail(context, argument, action));
-    }
-
-    private void withTaskOrFail(CommandContext<CommandSourceStack> context, String argument, Consumer<Task> action) {
-        String title = unquote(StringArgumentType.getString(context, argument));
-        Optional<Task> task = service.findByTitle(title);
+        Optional<Task> task = lookup(context, argument);
         if (task.isEmpty()) {
-            throw new UnknownTitleException(title);
+            return report(sender, unknown(context, argument));
         }
-        action.accept(task.get());
+        return report(sender, action.apply(Senders.actor(sender), task.get()));
     }
 
-    private static String describeTasks(TaskGraph graph, List<String> ids) {
-        if (ids.isEmpty()) {
-            return "nada";
+    private Optional<Task> lookup(CommandContext<CommandSourceStack> context, String argument) {
+        return actions.findByTitle(unquote(StringArgumentType.getString(context, argument)));
+    }
+
+    private static ActionResult unknown(CommandContext<CommandSourceStack> context, String argument) {
+        String title = unquote(StringArgumentType.getString(context, argument));
+        return new ActionResult(false, null, TaskActions.unknownTitle(title), List.of());
+    }
+
+    /** Errors in red, the main message in green and details in gray, as the commands always showed them. */
+    private static int report(CommandSender sender, ActionResult result) {
+        if (!result.success()) {
+            return fail(sender, result.message());
         }
-        return String.join(", ", ids.stream()
-                .map(id -> graph.get(id)
-                        .map(task -> (task.resolved() ? "✔ " : "✘ ") + task.title())
-                        .orElse(id))
-                .toList());
-    }
-
-    private int run(CommandSender sender, Runnable action) {
-        try {
-            action.run();
-            return Command.SINGLE_SUCCESS;
-        } catch (DeniedException exception) {
-            return fail(sender, exception.getMessage());
-        } catch (UnknownTitleException exception) {
-            return fail(sender, "No existe la tarea " + quoted(exception.title) + ".");
-        } catch (TaskGraphException exception) {
-            return fail(sender, RejectionMessages.of(exception, this::titleOf));
-        } catch (TaskStoreException exception) {
-            logger.log(Level.SEVERE, "Could not save tasks", exception);
-            return fail(sender, "No se pudo guardar el cambio. Revisá el log del servidor.");
+        result.messageOptional().ifPresent(message -> succeed(sender, message));
+        for (String detail : result.details()) {
+            sender.sendMessage(Component.text(detail, NamedTextColor.GRAY));
         }
-    }
-
-    private static Actor actor(CommandSender sender) {
-        boolean admin = sender.hasPermission(ADMIN_PERMISSION);
-        return sender instanceof Player player ? Actor.player(player.getUniqueId(), admin) : new Actor(null, admin);
-    }
-
-    private static PlayerRef playerRef(Player player) {
-        return new PlayerRef(player.getUniqueId(), player.getName());
-    }
-
-    private String titleOf(String id) {
-        return service.task(id).map(Task::title).orElse(id);
+        return Command.SINGLE_SUCCESS;
     }
 
     /** Greedy arguments keep quotes literally; drop them when the player typed a quoted title anyway. */
@@ -332,24 +283,5 @@ public final class TaskCommand {
     private static int fail(CommandSender sender, String message) {
         sender.sendMessage(Component.text(message, NamedTextColor.RED));
         return 0;
-    }
-
-    /** The sender lacks the permission for this action. The message is shown as is. */
-    private static final class DeniedException extends RuntimeException {
-
-        private DeniedException(String message) {
-            super(message, null, false, false);
-        }
-    }
-
-    /** A typed title that matches no task. Kept apart from graph rejections, which carry internal ids. */
-    private static final class UnknownTitleException extends RuntimeException {
-
-        private final String title;
-
-        private UnknownTitleException(String title) {
-            super(null, null, false, false);
-            this.title = title;
-        }
     }
 }

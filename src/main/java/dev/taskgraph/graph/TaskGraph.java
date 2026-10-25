@@ -157,6 +157,20 @@ public final class TaskGraph {
         return replace(task.withDependencies(dependencies));
     }
 
+    /**
+     * Removes a dependency, keeping the order of the rest. Removing the visual parent makes the next
+     * dependency the new parent; with none left, the task hangs from the root again.
+     */
+    public Task removeDependency(String id, String dependencyId) {
+        Task task = require(id);
+        if (!task.dependencies().contains(dependencyId)) {
+            throw new TaskGraphException(Reason.NOT_A_DEPENDENCY, id, List.of(dependencyId));
+        }
+        List<String> dependencies = new ArrayList<>(task.dependencies());
+        dependencies.remove(dependencyId);
+        return replace(task.withDependencies(dependencies));
+    }
+
     /** Assigns a task that is free or already assigned to the same player. */
     public Task assign(String id, PlayerRef assignee) {
         return assign(id, assignee, false);
@@ -238,6 +252,57 @@ public final class TaskGraph {
         return require(id).dependencies().stream()
                 .filter(dependencyId -> !tasks.get(dependencyId).resolved())
                 .toList();
+    }
+
+    public TaskStatus status(String id) {
+        Task task = require(id);
+        if (task.resolved()) {
+            return TaskStatus.RESOLVED;
+        }
+        return unresolvedDependencies(id).isEmpty() ? TaskStatus.AVAILABLE : TaskStatus.BLOCKED;
+    }
+
+    /**
+     * Tasks for the task list: available first, then blocked, then resolved; alphabetical by title inside
+     * each group, so a task is easy to find in a long list.
+     */
+    public List<Task> listOrder() {
+        Comparator<Task> byStatus = Comparator.comparing(task -> status(task.id()));
+        return tasks.values().stream()
+                .sorted(byStatus.thenComparing(task -> Titles.key(task.title())))
+                .toList();
+    }
+
+    /**
+     * Tasks that {@code id} could depend on right now: not itself, not already a dependency, not one that
+     * already depends on it (directly or not, which would close a cycle), and only resolved ones when the
+     * task itself is resolved. Alphabetical by title.
+     */
+    public List<Task> dependencyCandidates(String id) {
+        Task task = require(id);
+        Set<String> dependsOnTask = transitiveDependents(id);
+        return tasks.values().stream()
+                .filter(candidate -> !candidate.id().equals(id))
+                .filter(candidate -> !task.dependencies().contains(candidate.id()))
+                .filter(candidate -> !dependsOnTask.contains(candidate.id()))
+                .filter(candidate -> !task.resolved() || candidate.resolved())
+                .sorted(Comparator.comparing(candidate -> Titles.key(candidate.title())))
+                .toList();
+    }
+
+    /** Ids of every task that depends on {@code id}, directly or through other tasks. */
+    private Set<String> transitiveDependents(String id) {
+        Set<String> found = new HashSet<>();
+        Deque<String> queue = new ArrayDeque<>(List.of(id));
+        while (!queue.isEmpty()) {
+            String current = queue.poll();
+            for (Task task : tasks.values()) {
+                if (task.dependencies().contains(current) && found.add(task.id())) {
+                    queue.add(task.id());
+                }
+            }
+        }
+        return found;
     }
 
     /** Ids of deleted tasks that have not been created again, in deletion order. */

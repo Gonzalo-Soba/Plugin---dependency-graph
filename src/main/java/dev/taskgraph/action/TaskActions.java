@@ -1,0 +1,187 @@
+package dev.taskgraph.action;
+
+import dev.taskgraph.graph.PlayerRef;
+import dev.taskgraph.graph.Task;
+import dev.taskgraph.graph.TaskGraphException;
+import dev.taskgraph.graph.TaskPermissions;
+import dev.taskgraph.graph.TaskPermissions.Actor;
+import dev.taskgraph.service.TaskService;
+import dev.taskgraph.storage.TaskStoreException;
+
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Every task change a player can request, shared by commands and dialogs. Each action looks the task up
+ * again by id and checks permissions at call time, so a stale view (an old dialog, a deleted task) can't
+ * bypass the rules. Results are plain text; free of Paper types so it can be unit tested.
+ */
+public final class TaskActions {
+
+    static final String FALLBACK_ICON_NOTE = "No tenías nada en la mano, así que el ícono es papel.";
+
+    private final TaskService service;
+    private final Consumer<String> announcer;
+    private final Logger logger;
+
+    /**
+     * @param announcer sends a line to every online player (e.g. when a task is resolved)
+     */
+    public TaskActions(TaskService service, Consumer<String> announcer, Logger logger) {
+        this.service = service;
+        this.announcer = announcer;
+        this.logger = logger;
+    }
+
+    public Optional<Task> findByTitle(String title) {
+        return service.findByTitle(title);
+    }
+
+    public static String unknownTitle(String title) {
+        return "No existe la tarea " + quoted(title) + ".";
+    }
+
+    /**
+     * @param iconIsFallback whether {@code icon} replaces an empty hand, so the actor is told
+     */
+    public ActionResult create(Actor actor, String title, String icon, boolean iconIsFallback) {
+        return run(null, () -> {
+            Task task = service.create(title, icon, actor.playerRef().orElse(null));
+            String message = "Tarea " + quoted(task.title()) + " creada.";
+            return iconIsFallback
+                    ? ActionResult.success(task, message, FALLBACK_ICON_NOTE)
+                    : ActionResult.success(task, message);
+        });
+    }
+
+    public ActionResult rename(Actor actor, String taskId, String newTitle) {
+        return withTask(taskId, task -> {
+            Task renamed = service.rename(task.id(), newTitle);
+            return ActionResult.success(renamed, quoted(task.title()) + " ahora se llama " + quoted(renamed.title()) + ".");
+        });
+    }
+
+    public ActionResult describe(Actor actor, String taskId, String description) {
+        return withTask(taskId, task -> ActionResult.success(
+                service.describe(task.id(), description),
+                "Descripción de " + quoted(task.title()) + " actualizada."));
+    }
+
+    public ActionResult addDependency(Actor actor, String taskId, String dependencyId) {
+        return withTask(taskId, task -> withOther(task, dependencyId, dependency -> {
+            Task updated = service.addDependency(task.id(), dependency.id());
+            boolean visualParent = updated.dependencies().size() == 1;
+            return ActionResult.success(updated, quoted(task.title()) + " ahora depende de " + quoted(dependency.title())
+                    + (visualParent ? "." : " (se muestra en \"También requiere\")."));
+        }));
+    }
+
+    public ActionResult removeDependency(Actor actor, String taskId, String dependencyId) {
+        return withTask(taskId, task -> withOther(task, dependencyId, dependency -> {
+            boolean wasVisualParent = task.visualParent().filter(dependency.id()::equals).isPresent();
+            Task updated = service.removeDependency(task.id(), dependency.id());
+            String message = quoted(task.title()) + " ya no depende de " + quoted(dependency.title()) + ".";
+            if (!wasVisualParent) {
+                return ActionResult.success(updated, message);
+            }
+            String newParent = updated.visualParent()
+                    .map(parentId -> "En la pestaña ahora cuelga de " + quoted(titleOf(parentId)) + ".")
+                    .orElse("En la pestaña ahora cuelga directamente del raíz.");
+            return ActionResult.success(updated, message, newParent);
+        }));
+    }
+
+    public ActionResult assignToSelf(Actor actor, String taskId) {
+        Optional<PlayerRef> self = actor.playerRef();
+        if (self.isEmpty()) {
+            return ActionResult.failure(null, "Solo un jugador puede asignarse una tarea.");
+        }
+        return withTask(taskId, task -> {
+            if (!TaskPermissions.canAssignToSelf(task, actor)) {
+                String current = task.assigneeOptional().map(PlayerRef::name).orElse("otra persona");
+                return ActionResult.failure(task, quoted(task.title()) + " ya está asignada a " + current
+                        + ": tiene que soltarla o un admin la reasigna.");
+            }
+            Task updated = service.assign(task.id(), self.get(), actor.admin());
+            String message = "Te asignaste la tarea " + quoted(task.title()) + ".";
+            // task is the state before the change, so this reports who had it.
+            return task.assigneeOptional()
+                    .filter(previous -> !previous.is(self.get().uuid()))
+                    .map(previous -> ActionResult.success(updated, message, "Antes estaba asignada a " + previous.name() + "."))
+                    .orElseGet(() -> ActionResult.success(updated, message));
+        });
+    }
+
+    public ActionResult release(Actor actor, String taskId) {
+        return withTask(taskId, task -> {
+            if (task.assigneeOptional().isPresent() && !TaskPermissions.canRelease(task, actor)) {
+                return ActionResult.failure(task, "Solo " + task.assignee().name() + " o un admin pueden soltar "
+                        + quoted(task.title()) + ".");
+            }
+            Task updated = service.unassign(task.id());
+            boolean own = actor.uuid() != null && task.assignee().is(actor.uuid());
+            return ActionResult.success(updated, own
+                    ? "Soltaste la tarea " + quoted(task.title()) + "."
+                    : quoted(task.title()) + " ya no está asignada a " + task.assignee().name() + ".");
+        });
+    }
+
+    /** The announcement to everyone replaces a personal message. */
+    public ActionResult resolve(Actor actor, String taskId) {
+        return withTask(taskId, task -> {
+            Task resolved = service.resolve(task.id());
+            announcer.accept("✔ " + actor.name() + " resolvió la tarea " + quoted(task.title()));
+            return ActionResult.success(resolved, null);
+        });
+    }
+
+    public ActionResult remove(Actor actor, String taskId) {
+        return withTask(taskId, task -> {
+            if (!TaskPermissions.canRemove(task, actor)) {
+                return ActionResult.failure(task, task.creatorOptional()
+                        .map(creator -> "Solo " + creator.name() + " (quien la creó) o un admin pueden borrar " + quoted(task.title()) + ".")
+                        .orElse("Solo un admin puede borrar " + quoted(task.title()) + "."));
+            }
+            service.remove(task.id());
+            return ActionResult.success(null, "Tarea " + quoted(task.title()) + " borrada.");
+        });
+    }
+
+    private ActionResult withTask(String taskId, Function<Task, ActionResult> action) {
+        Optional<Task> task = service.task(taskId);
+        if (task.isEmpty()) {
+            return ActionResult.failure(null, "Esa tarea ya no existe.");
+        }
+        return run(task.get(), () -> action.apply(task.get()));
+    }
+
+    private ActionResult withOther(Task task, String otherId, Function<Task, ActionResult> action) {
+        return service.task(otherId)
+                .map(action)
+                .orElseGet(() -> ActionResult.failure(task, "Esa tarea ya no existe."));
+    }
+
+    /** Turns graph rejections and save failures into failed results; {@code task} is reported with them. */
+    private ActionResult run(Task task, Supplier<ActionResult> action) {
+        try {
+            return action.get();
+        } catch (TaskGraphException exception) {
+            return ActionResult.failure(task, RejectionMessages.of(exception, this::titleOf));
+        } catch (TaskStoreException exception) {
+            logger.log(Level.SEVERE, "Could not save tasks", exception);
+            return ActionResult.failure(task, "No se pudo guardar el cambio. Revisá el log del servidor.");
+        }
+    }
+
+    private String titleOf(String id) {
+        return service.task(id).map(Task::title).orElse(id);
+    }
+
+    static String quoted(String title) {
+        return "\"" + title + "\"";
+    }
+}

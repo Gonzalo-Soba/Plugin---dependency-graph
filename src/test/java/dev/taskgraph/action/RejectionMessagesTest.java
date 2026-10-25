@@ -1,4 +1,4 @@
-package dev.taskgraph.command;
+package dev.taskgraph.action;
 
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;

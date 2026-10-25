@@ -1,7 +1,7 @@
 package dev.taskgraph.listener;
 
 import com.fren_gor.ultimateAdvancementAPI.events.PlayerLoadingCompletedEvent;
-import dev.taskgraph.service.TaskService;
+import dev.taskgraph.advancement.TaskTabPublisher;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
@@ -11,14 +11,14 @@ import org.bukkit.event.Listener;
  */
 public final class PlayerSyncListener implements Listener {
 
-    private final TaskService service;
+    private final TaskTabPublisher publisher;
 
-    public PlayerSyncListener(TaskService service) {
-        this.service = service;
+    public PlayerSyncListener(TaskTabPublisher publisher) {
+        this.publisher = publisher;
     }
 
     @EventHandler
     public void onPlayerLoaded(PlayerLoadingCompletedEvent event) {
-        service.syncPlayer(event.getPlayer());
+        publisher.syncPlayer(event.getPlayer());
     }
 }
