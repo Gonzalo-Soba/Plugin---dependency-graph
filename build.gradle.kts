@@ -1,11 +1,15 @@
 plugins {
     java
+    id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
 group = "dev.taskgraph"
 version = "0.1.0-SNAPSHOT"
 
-val paperVersion = "26.3.build.222-stable"
+// The dev server runs the same Paper build the plugin compiles against.
+val minecraftVersion = "26.3"
+val paperBuild = 222
+val paperVersion = "$minecraftVersion.build.$paperBuild-stable"
 val uaapiVersion = "3.0.0-beta-4"
 val junitVersion = "6.1.3"
 // Must match the Gson version exposed by paper-api, which provides it at runtime.
@@ -72,4 +76,25 @@ tasks.test {
 tasks.register<Sync>("downloadApiSources") {
     from(apiSources)
     into(layout.buildDirectory.dir("api-sources"))
+}
+
+// Seeds the local test server with dev-server/ files. Existing files are kept, so local edits survive.
+val prepareDevServer = tasks.register<Copy>("prepareDevServer") {
+    from(layout.projectDirectory.dir("dev-server"))
+    into(layout.projectDirectory.dir("run"))
+    eachFile {
+        if (destinationDir.resolve(path).exists()) {
+            exclude()
+        }
+    }
+}
+
+// The plugin jar from the jar task is added automatically by run-paper.
+tasks.runServer {
+    dependsOn(prepareDevServer)
+    minecraftVersion(minecraftVersion)
+    build(paperBuild)
+    downloadPlugins {
+        modrinth("ultimateadvancementapi", uaapiVersion)
+    }
 }
