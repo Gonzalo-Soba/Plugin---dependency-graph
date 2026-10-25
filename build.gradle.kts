@@ -19,7 +19,7 @@ repositories {
     }
 }
 
-val apiSources: Configuration by configurations.creating {
+val apiSources = configurations.create("apiSources") {
     isTransitive = false
 }
 
@@ -32,6 +32,7 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
