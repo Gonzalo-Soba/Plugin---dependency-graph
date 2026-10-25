@@ -12,19 +12,25 @@ public final class TaskPermissions {
     }
 
     /**
-     * Whoever runs a command.
+     * Whoever runs an action.
      *
      * @param uuid  the player's id, or {@code null} for the console and other non-player senders
+     * @param name  shown in announcements, e.g. who resolved a task
      * @param admin whether the sender has the admin permission (the console always does)
      */
-    public record Actor(UUID uuid, boolean admin) {
+    public record Actor(UUID uuid, String name, boolean admin) {
 
-        public static Actor player(UUID uuid, boolean admin) {
-            return new Actor(uuid, admin);
+        public static Actor player(UUID uuid, String name, boolean admin) {
+            return new Actor(uuid, name, admin);
         }
 
         public static Actor console() {
-            return new Actor(null, true);
+            return new Actor(null, "CONSOLE", true);
+        }
+
+        /** The actor as a player reference, empty for non-player senders. */
+        public Optional<PlayerRef> playerRef() {
+            return uuid == null ? Optional.empty() : Optional.of(new PlayerRef(uuid, name));
         }
 
         boolean is(Optional<PlayerRef> player) {

@@ -1,7 +1,9 @@
 package dev.taskgraph;
 
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
+import dev.taskgraph.action.TaskActions;
 import dev.taskgraph.advancement.ProgressSynchronizer;
+import dev.taskgraph.advancement.TaskTabPublisher;
 import dev.taskgraph.advancement.TaskTabRenderer;
 import dev.taskgraph.command.TaskCommand;
 import dev.taskgraph.graph.TaskGraph;
@@ -10,14 +12,14 @@ import dev.taskgraph.service.TaskService;
 import dev.taskgraph.storage.JsonTaskStore;
 import dev.taskgraph.storage.TaskStoreException;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.logging.Level;
 
 public final class TaskGraphPlugin extends JavaPlugin {
-
-    private TaskService service;
 
     @Override
     public void onEnable() {
@@ -34,11 +36,14 @@ public final class TaskGraphPlugin extends JavaPlugin {
         getLogger().info("Loaded " + graph.size() + " tasks");
 
         UltimateAdvancementAPI api = UltimateAdvancementAPI.getInstance(this);
-        service = new TaskService(store, new TaskTabRenderer(api), new ProgressSynchronizer(getLogger()), graph);
+        TaskTabPublisher publisher = new TaskTabPublisher(new TaskTabRenderer(api), new ProgressSynchronizer(getLogger()));
+        TaskService service = new TaskService(store, graph, publisher::publish);
         service.start();
-        getServer().getPluginManager().registerEvents(new PlayerSyncListener(service), this);
+        getServer().getPluginManager().registerEvents(new PlayerSyncListener(publisher), this);
 
-        TaskCommand command = new TaskCommand(service, getLogger());
+        TaskActions actions = new TaskActions(service,
+                message -> getServer().broadcast(Component.text(message, NamedTextColor.GREEN)), getLogger());
+        TaskCommand command = new TaskCommand(service, actions);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
                 event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of()));
     }
