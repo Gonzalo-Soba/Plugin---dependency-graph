@@ -12,6 +12,8 @@ import java.util.Optional;
  * @param icon         namespaced material key, e.g. {@code minecraft:diamond}
  * @param dependencies ids this task depends on, in insertion order; the first one is the visual parent
  * @param assignee     assigned player, or {@code null} when nobody is assigned
+ * @param creator      player who created the task, or {@code null} for the console and tasks created before
+ *                     creators were recorded
  */
 public record Task(
         String id,
@@ -19,8 +21,9 @@ public record Task(
         String description,
         String icon,
         List<String> dependencies,
-        Assignee assignee,
-        boolean resolved
+        PlayerRef assignee,
+        boolean resolved,
+        PlayerRef creator
 ) {
 
     public Task {
@@ -31,11 +34,21 @@ public record Task(
         dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
     }
 
-    public static Task create(String id, String title, String icon) {
-        return new Task(id, title, "", icon, List.of(), null, false);
+    /** Task without a recorded creator. */
+    public Task(String id, String title, String description, String icon, List<String> dependencies,
+                PlayerRef assignee, boolean resolved) {
+        this(id, title, description, icon, dependencies, assignee, resolved, null);
     }
 
-    public Optional<Assignee> assigneeOptional() {
+    public static Task create(String id, String title, String icon, PlayerRef creator) {
+        return new Task(id, title, "", icon, List.of(), null, false, creator);
+    }
+
+    public Optional<PlayerRef> creatorOptional() {
+        return Optional.ofNullable(creator);
+    }
+
+    public Optional<PlayerRef> assigneeOptional() {
         return Optional.ofNullable(assignee);
     }
 
@@ -49,22 +62,22 @@ public record Task(
     }
 
     Task withTitle(String newTitle) {
-        return new Task(id, newTitle, description, icon, dependencies, assignee, resolved);
+        return new Task(id, newTitle, description, icon, dependencies, assignee, resolved, creator);
     }
 
     Task withDescription(String newDescription) {
-        return new Task(id, title, newDescription, icon, dependencies, assignee, resolved);
+        return new Task(id, title, newDescription, icon, dependencies, assignee, resolved, creator);
     }
 
     Task withDependencies(List<String> newDependencies) {
-        return new Task(id, title, description, icon, newDependencies, assignee, resolved);
+        return new Task(id, title, description, icon, newDependencies, assignee, resolved, creator);
     }
 
-    Task withAssignee(Assignee newAssignee) {
-        return new Task(id, title, description, icon, dependencies, newAssignee, resolved);
+    Task withAssignee(PlayerRef newAssignee) {
+        return new Task(id, title, description, icon, dependencies, newAssignee, resolved, creator);
     }
 
     Task withResolved(boolean newResolved) {
-        return new Task(id, title, description, icon, dependencies, assignee, newResolved);
+        return new Task(id, title, description, icon, dependencies, assignee, newResolved, creator);
     }
 }

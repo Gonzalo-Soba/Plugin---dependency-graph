@@ -29,6 +29,8 @@ public final class RejectionMessages {
                     + String.join(" → ", related.stream().map(RejectionMessages::quoted).toList()) + ".";
             case RESOLVED_TASK_DEPENDENCY -> task + " ya está resuelta y no puede depender de una tarea pendiente ("
                     + list(related) + ").";
+            case ALREADY_ASSIGNED -> task + " ya está asignada a otra persona: tiene que soltarla o un admin la reasigna.";
+            case NOT_ASSIGNED -> task + " no está asignada a nadie.";
             case ALREADY_RESOLVED -> task + " ya está resuelta.";
             case UNRESOLVED_DEPENDENCIES -> "No se puede resolver " + task + ": faltan " + list(related) + ".";
             case HAS_DEPENDENTS -> "No se puede borrar " + task + ": dependen de ella " + list(related) + ".";

@@ -2,7 +2,7 @@
 
 Plugin de Paper para organizar las tareas comunales de un servidor de Minecraft. Las tareas forman un grafo de dependencias que se muestra en la pantalla de logros (advancements) vanilla, así que los jugadores no necesitan mods en el cliente.
 
-> Estado: MVP. Todos los jugadores pueden usar todos los comandos (todavía no hay permisos finos).
+> Estado: en desarrollo hacia la 0.1.0.
 
 ## Cómo se ve
 
@@ -61,6 +61,10 @@ Jugadores: **A** y **B**.
 - [ ] **Sin toasts ni anuncios al entrar o reconstruir.** Con tareas ya resueltas, B sale y vuelve a entrar: no aparece ningún toast ni mensaje de logro en el chat. Lo mismo cuando A edita cualquier tarea (`desc`, `asignar`) y la pestaña se reconstruye.
 - [ ] **`/tarea resolver` anuncia una sola vez.** A resuelve una tarea: A y B ven un único mensaje "✔ A resolvió la tarea ...", sin el anuncio de logro vanilla, y la tarea aparece completada para los dos.
 - [ ] **Revocación con jugador offline.** A resuelve "Jardín" (sin dependencias) y B la ve completada. B sale. A la borra con `/tarea borrar Jardín` y la vuelve a crear con `/tarea crear Jardín`. B entra: "Jardín" aparece **pendiente**, no completada.
+- [ ] **Permisos.** En la consola, `op A` (B queda sin op). B crea "Silla" y A crea "Mesa".
+  - B no puede borrar "Mesa"; sí puede borrar "Silla". A, como admin, puede borrar cualquiera.
+  - B se asigna "Mesa"; A no puede soltarla salvo como admin, y `/tarea asignar Mesa` de A la reasigna avisando quién la tenía.
+  - Con `deop A`, A ya no puede reasignar "Mesa" mientras la tenga B. `/tarea soltar Mesa` de B la libera.
 - [ ] **Títulos sin distinguir mayúsculas ni tildes.** `/tarea info jardin` encuentra "Jardín", y `/tarea crear JARDIN` se rechaza porque ya existe. `/tarea renombrar Jardín Huerta` cambia el nombre en la pestaña y conserva el estado.
 
 Si algo falla, guardá `run/logs/latest.log`.
@@ -85,9 +89,18 @@ Las tareas se nombran por su **título**, que es único: no distingue mayúscula
 | `/tarea renombrar "<título>" <nuevo título>` | Cambia el título. El estado, las dependencias y el progreso se conservan. |
 | `/tarea desc "<título>" <texto>` | Cambia la descripción. |
 | `/tarea depende "<título>" <dependencia>` | Hace que la tarea dependa de otra. Se rechaza si crea un ciclo. La primera dependencia es el padre visual; las siguientes se listan como "También requiere". |
-| `/tarea asignar <título>` | Te asigna la tarea (reemplaza al asignado anterior). |
+| `/tarea asignar <título>` | Te asigna la tarea. Si ya está asignada a otra persona se rechaza: esa persona la suelta o un admin la reasigna. |
+| `/tarea soltar <título>` | Quita la asignación. Solo quien la tiene asignada o un admin. |
 | `/tarea resolver <título>` | Marca la tarea como resuelta para todos. Requiere que todas sus dependencias estén resueltas. |
-| `/tarea info <título>` | Muestra estado, asignado, dependencias y qué tareas la necesitan. |
-| `/tarea borrar <título>` | Borra la tarea. Se rechaza si otras tareas dependen de ella. |
+| `/tarea info <título>` | Muestra estado, quién la creó, asignado, dependencias y qué tareas la necesitan. |
+| `/tarea borrar <título>` | Borra la tarea. Solo quien la creó o un admin. Se rechaza si otras tareas dependen de ella. |
+
+### Permisos
+
+| Permiso | Por defecto | Qué permite |
+|---|---|---|
+| `taskgraph.admin` | operadores | Borrar cualquier tarea, soltar tareas de otros y reasignar con `asignar` una tarea que tiene otra persona. |
+
+Todo lo demás (crear, renombrar, describir, agregar dependencias, asignarse tareas libres, resolver y ver info) está abierto a todos los jugadores. La consola del servidor cuenta como admin. Las tareas creadas antes de que se guardara el creador solo las puede borrar un admin.
 
 Cada cambio se guarda en el JSON y regenera la pestaña de logros para todos los jugadores online.

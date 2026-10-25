@@ -1,6 +1,6 @@
 package dev.taskgraph.storage;
 
-import dev.taskgraph.graph.Assignee;
+import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.graph.TaskGraphException;
@@ -37,13 +37,14 @@ class JsonTaskStoreTest {
 
     private static TaskGraph sampleGraph() {
         TaskGraph graph = new TaskGraph();
-        Task wood = graph.create("Juntar madera", "minecraft:oak_log");
+        Task wood = graph.create("Juntar madera", "minecraft:oak_log",
+                new PlayerRef(UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7"), "Alex"));
         Task stone = graph.create("Picar piedra", "minecraft:cobblestone");
         Task furnace = graph.create("Armar un horno", "minecraft:furnace");
         graph.addDependency(furnace.id(), stone.id());
         graph.addDependency(furnace.id(), wood.id());
         graph.setDescription(furnace.id(), "Para cocinar la comida del pueblo: ñandú, ají y más");
-        graph.assign(stone.id(), new Assignee(UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e"), "Steve"));
+        graph.assign(stone.id(), new PlayerRef(UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e"), "Steve"));
         graph.resolve(wood.id());
         return graph;
     }

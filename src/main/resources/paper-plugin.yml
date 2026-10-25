@@ -4,6 +4,11 @@ main: dev.taskgraph.TaskGraphPlugin
 description: Communal task dependency graph shown in the vanilla advancements screen
 api-version: '26.3'
 
+permissions:
+  taskgraph.admin:
+    description: Delete any task, release or reassign tasks assigned to other players
+    default: op
+
 dependencies:
   server:
     UltimateAdvancementAPI:

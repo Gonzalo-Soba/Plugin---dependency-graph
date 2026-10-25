@@ -6,10 +6,12 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import dev.taskgraph.graph.Assignee;
+import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.graph.TaskGraphException;
+import dev.taskgraph.graph.TaskPermissions;
+import dev.taskgraph.graph.TaskPermissions.Actor;
 import dev.taskgraph.graph.Titles;
 import dev.taskgraph.service.TaskService;
 import dev.taskgraph.storage.TaskStoreException;
@@ -39,6 +41,8 @@ public final class TaskCommand {
 
     public static final String NAME = "tarea";
     public static final String DESCRIPTION = "Tareas comunales del servidor";
+    /** Declared in paper-plugin.yml; granted to operators by default. The console always has it. */
+    public static final String ADMIN_PERMISSION = "taskgraph.admin";
 
     private static final String TASK = "tarea";
     private static final String DEPENDENCY = "dependencia";
@@ -74,6 +78,8 @@ public final class TaskCommand {
                                 .then(lastTask(DEPENDENCY).executes(this::addDependency))))
                 .then(Commands.literal("asignar")
                         .then(lastTask(TASK).executes(this::assign)))
+                .then(Commands.literal("soltar")
+                        .then(lastTask(TASK).executes(this::release)))
                 .then(Commands.literal("resolver")
                         .then(lastTask(TASK).executes(this::resolve)))
                 .then(Commands.literal("info")
@@ -114,6 +120,7 @@ public final class TaskCommand {
                 "desc \"<título>\" <texto>",
                 "depende \"<título>\" <dependencia>",
                 "asignar <título>",
+                "soltar <título> — deja de estar asignada a vos",
                 "resolver <título>",
                 "info <título>",
                 "borrar <título>")) {
@@ -133,7 +140,7 @@ public final class TaskCommand {
         ItemStack hand = player.getInventory().getItemInMainHand();
         String icon = hand.isEmpty() ? FALLBACK_ICON : hand.getType().getKey().asString();
         return run(sender, () -> {
-            Task task = service.create(title, icon);
+            Task task = service.create(title, icon, playerRef(player));
             succeed(sender, "Tarea " + quoted(task.title()) + " creada.");
             if (hand.isEmpty()) {
                 sender.sendMessage(Component.text("No tenías nada en la mano, así que el ícono es papel.", NamedTextColor.GRAY));
@@ -174,9 +181,36 @@ public final class TaskCommand {
         if (!(sender instanceof Player player)) {
             return fail(sender, "Solo un jugador puede asignarse una tarea.");
         }
+        Actor actor = actor(sender);
         return withTask(context, TASK, task -> {
-            service.assign(task.id(), new Assignee(player.getUniqueId(), player.getName()));
+            if (!TaskPermissions.canAssignToSelf(task, actor)) {
+                String current = task.assigneeOptional().map(PlayerRef::name).orElse("otra persona");
+                throw new DeniedException(quoted(task.title()) + " ya está asignada a " + current
+                        + ": tiene que soltarla o un admin la reasigna.");
+            }
+            service.assign(task.id(), playerRef(player), actor.admin());
             succeed(sender, "Te asignaste la tarea " + quoted(task.title()) + ".");
+            // task is the state before the change, so this reports who had it.
+            task.assigneeOptional()
+                    .filter(current -> !current.is(player.getUniqueId()))
+                    .ifPresent(current -> sender.sendMessage(Component.text(
+                            "Antes estaba asignada a " + current.name() + ".", NamedTextColor.GRAY)));
+        });
+    }
+
+    private int release(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        Actor actor = actor(sender);
+        return withTask(context, TASK, task -> {
+            if (task.assigneeOptional().isPresent() && !TaskPermissions.canRelease(task, actor)) {
+                throw new DeniedException("Solo " + task.assignee().name() + " o un admin pueden soltar "
+                        + quoted(task.title()) + ".");
+            }
+            service.unassign(task.id());
+            boolean own = actor.uuid() != null && task.assignee().is(actor.uuid());
+            succeed(sender, own
+                    ? "Soltaste la tarea " + quoted(task.title()) + "."
+                    : quoted(task.title()) + " ya no está asignada a " + task.assignee().name() + ".");
         });
     }
 
@@ -199,8 +233,10 @@ public final class TaskCommand {
             }
             sender.sendMessage(Component.text("Estado: " + (task.resolved() ? "resuelta" : "pendiente"),
                     task.resolved() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("Creada por: "
+                    + task.creatorOptional().map(PlayerRef::name).orElse("desconocido"), NamedTextColor.GRAY));
             sender.sendMessage(Component.text("Asignada a: "
-                    + task.assigneeOptional().map(Assignee::name).orElse("nadie"), NamedTextColor.AQUA));
+                    + task.assigneeOptional().map(PlayerRef::name).orElse("nadie"), NamedTextColor.AQUA));
             sender.sendMessage(Component.text("Depende de: " + describeTasks(graph, task.dependencies()), NamedTextColor.GRAY));
             sender.sendMessage(Component.text("La necesitan: " + describeTasks(graph, graph.dependents(task.id())), NamedTextColor.GRAY));
             sender.sendMessage(Component.text("Ícono: " + task.icon(), NamedTextColor.DARK_GRAY));
@@ -209,7 +245,13 @@ public final class TaskCommand {
 
     private int remove(CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
+        Actor actor = actor(sender);
         return withTask(context, TASK, task -> {
+            if (!TaskPermissions.canRemove(task, actor)) {
+                throw new DeniedException(task.creatorOptional()
+                        .map(creator -> "Solo " + creator.name() + " (quien la creó) o un admin pueden borrar " + quoted(task.title()) + ".")
+                        .orElse("Solo un admin puede borrar " + quoted(task.title()) + "."));
+            }
             service.remove(task.id());
             succeed(sender, "Tarea " + quoted(task.title()) + " borrada.");
         });
@@ -245,6 +287,8 @@ public final class TaskCommand {
         try {
             action.run();
             return Command.SINGLE_SUCCESS;
+        } catch (DeniedException exception) {
+            return fail(sender, exception.getMessage());
         } catch (UnknownTitleException exception) {
             return fail(sender, "No existe la tarea " + quoted(exception.title) + ".");
         } catch (TaskGraphException exception) {
@@ -253,6 +297,15 @@ public final class TaskCommand {
             logger.log(Level.SEVERE, "Could not save tasks", exception);
             return fail(sender, "No se pudo guardar el cambio. Revisá el log del servidor.");
         }
+    }
+
+    private static Actor actor(CommandSender sender) {
+        boolean admin = sender.hasPermission(ADMIN_PERMISSION);
+        return sender instanceof Player player ? Actor.player(player.getUniqueId(), admin) : new Actor(null, admin);
+    }
+
+    private static PlayerRef playerRef(Player player) {
+        return new PlayerRef(player.getUniqueId(), player.getName());
     }
 
     private String titleOf(String id) {
@@ -279,6 +332,14 @@ public final class TaskCommand {
     private static int fail(CommandSender sender, String message) {
         sender.sendMessage(Component.text(message, NamedTextColor.RED));
         return 0;
+    }
+
+    /** The sender lacks the permission for this action. The message is shown as is. */
+    private static final class DeniedException extends RuntimeException {
+
+        private DeniedException(String message) {
+            super(message, null, false, false);
+        }
     }
 
     /** A typed title that matches no task. Kept apart from graph rejections, which carry internal ids. */

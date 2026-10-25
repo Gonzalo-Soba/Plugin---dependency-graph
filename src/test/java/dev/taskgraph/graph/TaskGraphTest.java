@@ -373,15 +373,58 @@ class TaskGraphTest {
         }
 
         @Test
-        void assignReplacesPreviousAssignee() {
+        void assignRejectsTaskAssignedToSomeoneElse() {
             createAll("a");
-            Assignee first = new Assignee(UUID.randomUUID(), "Alex");
-            Assignee second = new Assignee(UUID.randomUUID(), "Steve");
-
+            PlayerRef first = new PlayerRef(UUID.randomUUID(), "Alex");
+            PlayerRef second = new PlayerRef(UUID.randomUUID(), "Steve");
             graph.assign("a", first);
-            Task task = graph.assign("a", second);
 
-            assertEquals(second, task.assigneeOptional().orElseThrow());
+            assertRejected(Reason.ALREADY_ASSIGNED, () -> graph.assign("a", second));
+            assertEquals(first, graph.get("a").orElseThrow().assignee());
+        }
+
+        @Test
+        void assignAgainToSamePlayerIsAllowed() {
+            createAll("a");
+            PlayerRef alex = new PlayerRef(UUID.randomUUID(), "Alex");
+            graph.assign("a", alex);
+
+            // Same UUID with a new name, e.g. after a name change.
+            PlayerRef renamed = new PlayerRef(alex.uuid(), "Alex2");
+            assertEquals(renamed, graph.assign("a", renamed).assignee());
+        }
+
+        @Test
+        void adminReassignmentReplacesAssignee() {
+            createAll("a");
+            PlayerRef first = new PlayerRef(UUID.randomUUID(), "Alex");
+            PlayerRef second = new PlayerRef(UUID.randomUUID(), "Steve");
+            graph.assign("a", first);
+
+            assertEquals(second, graph.assign("a", second, true).assignee());
+        }
+
+        @Test
+        void unassignClearsAssignee() {
+            createAll("a");
+            graph.assign("a", new PlayerRef(UUID.randomUUID(), "Alex"));
+
+            assertTrue(graph.unassign("a").assigneeOptional().isEmpty());
+        }
+
+        @Test
+        void unassignRejectsFreeTask() {
+            createAll("a");
+
+            assertRejected(Reason.NOT_ASSIGNED, () -> graph.unassign("a"));
+        }
+
+        @Test
+        void createRecordsCreator() {
+            PlayerRef alex = new PlayerRef(UUID.randomUUID(), "Alex");
+
+            assertEquals(alex, graph.create("Mesa", ICON, alex).creator());
+            assertTrue(graph.create("Silla", ICON).creatorOptional().isEmpty());
         }
     }
 

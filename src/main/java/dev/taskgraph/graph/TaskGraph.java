@@ -97,11 +97,18 @@ public final class TaskGraph {
      * task can't inherit progress that offline players still hold for an old one.
      */
     public Task create(String title, String icon) {
+        return create(title, icon, null);
+    }
+
+    /**
+     * @param creator player who creates the task, or {@code null} for the console
+     */
+    public Task create(String title, String icon, PlayerRef creator) {
         validateTitle(null, title);
         String cleanTitle = Titles.clean(title);
         requireUniqueTitle(cleanTitle, null);
         String id = Titles.generateId(cleanTitle, candidate -> tasks.containsKey(candidate) || removedIds.contains(candidate));
-        Task task = Task.create(id, cleanTitle, icon);
+        Task task = Task.create(id, cleanTitle, icon, creator);
         tasks.put(id, task);
         return task;
     }
@@ -150,8 +157,29 @@ public final class TaskGraph {
         return replace(task.withDependencies(dependencies));
     }
 
-    public Task assign(String id, Assignee assignee) {
-        return replace(require(id).withAssignee(assignee));
+    /** Assigns a task that is free or already assigned to the same player. */
+    public Task assign(String id, PlayerRef assignee) {
+        return assign(id, assignee, false);
+    }
+
+    /**
+     * @param replaceOther whether a task assigned to someone else may be taken over (admin reassignment)
+     */
+    public Task assign(String id, PlayerRef assignee, boolean replaceOther) {
+        Task task = require(id);
+        boolean takenByOther = task.assigneeOptional().filter(current -> !current.is(assignee.uuid())).isPresent();
+        if (takenByOther && !replaceOther) {
+            throw new TaskGraphException(Reason.ALREADY_ASSIGNED, id);
+        }
+        return replace(task.withAssignee(assignee));
+    }
+
+    public Task unassign(String id) {
+        Task task = require(id);
+        if (task.assigneeOptional().isEmpty()) {
+            throw new TaskGraphException(Reason.NOT_ASSIGNED, id);
+        }
+        return replace(task.withAssignee(null));
     }
 
     public Task resolve(String id) {
