@@ -25,6 +25,7 @@ public final class RejectionMessages {
             case NOT_FOUND -> "No existe la tarea " + task + ".";
             case SELF_DEPENDENCY -> "Una tarea no puede depender de sí misma.";
             case DUPLICATE_DEPENDENCY -> task + " ya depende de " + list(related) + ".";
+            case NOT_A_DEPENDENCY -> task + " no depende de " + list(related) + ".";
             case CYCLE -> "Esa dependencia crea un ciclo: "
                     + String.join(" → ", related.stream().map(RejectionMessages::quoted).toList()) + ".";
             case RESOLVED_TASK_DEPENDENCY -> task + " ya está resuelta y no puede depender de una tarea pendiente ("

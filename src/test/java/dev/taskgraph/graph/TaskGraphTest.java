@@ -222,6 +222,46 @@ class TaskGraphTest {
         }
 
         @Test
+        void removeDependencyKeepsOrderOfTheRest() {
+            createAll("a", "b", "c", "d");
+            graph.addDependency("d", "a");
+            graph.addDependency("d", "b");
+            graph.addDependency("d", "c");
+
+            Task task = graph.removeDependency("d", "a");
+
+            assertEquals(List.of("b", "c"), task.dependencies());
+            assertEquals("b", task.visualParent().orElseThrow());
+        }
+
+        @Test
+        void removeLastDependencyLeavesNoParent() {
+            createAll("a", "b");
+            graph.addDependency("b", "a");
+
+            assertTrue(graph.removeDependency("b", "a").visualParent().isEmpty());
+            assertTrue(graph.dependents("a").isEmpty());
+        }
+
+        @Test
+        void removeDependencyRejectsNonDependency() {
+            createAll("a", "b");
+
+            TaskGraphException exception = assertRejected(Reason.NOT_A_DEPENDENCY, () -> graph.removeDependency("b", "a"));
+            assertEquals(List.of("a"), exception.relatedIds());
+        }
+
+        @Test
+        void removeDependencyAllowsResolvedTask() {
+            createAll("a", "b");
+            graph.addDependency("b", "a");
+            graph.resolve("a");
+            graph.resolve("b");
+
+            assertTrue(graph.removeDependency("b", "a").resolved());
+        }
+
+        @Test
         void rejectsDuplicateDependency() {
             createAll("a", "b");
             graph.addDependency("a", "b");

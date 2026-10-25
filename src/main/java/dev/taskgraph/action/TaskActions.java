@@ -80,6 +80,21 @@ public final class TaskActions {
         }));
     }
 
+    public ActionResult removeDependency(Actor actor, String taskId, String dependencyId) {
+        return withTask(taskId, task -> withOther(task, dependencyId, dependency -> {
+            boolean wasVisualParent = task.visualParent().filter(dependency.id()::equals).isPresent();
+            Task updated = service.removeDependency(task.id(), dependency.id());
+            String message = quoted(task.title()) + " ya no depende de " + quoted(dependency.title()) + ".";
+            if (!wasVisualParent) {
+                return ActionResult.success(updated, message);
+            }
+            String newParent = updated.visualParent()
+                    .map(parentId -> "En la pestaña ahora cuelga de " + quoted(titleOf(parentId)) + ".")
+                    .orElse("En la pestaña ahora cuelga directamente del raíz.");
+            return ActionResult.success(updated, message, newParent);
+        }));
+    }
+
     public ActionResult assignToSelf(Actor actor, String taskId) {
         Optional<PlayerRef> self = actor.playerRef();
         if (self.isEmpty()) {

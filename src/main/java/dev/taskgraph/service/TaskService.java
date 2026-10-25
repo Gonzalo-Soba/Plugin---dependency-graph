@@ -72,6 +72,10 @@ public final class TaskService {
         return apply(next -> next.addDependency(id, dependencyId));
     }
 
+    public Task removeDependency(String id, String dependencyId) {
+        return apply(next -> next.removeDependency(id, dependencyId));
+    }
+
     /** @param replaceOther whether a task assigned to someone else may be taken over (admin reassignment) */
     public Task assign(String id, PlayerRef assignee, boolean replaceOther) {
         return apply(next -> next.assign(id, assignee, replaceOther));

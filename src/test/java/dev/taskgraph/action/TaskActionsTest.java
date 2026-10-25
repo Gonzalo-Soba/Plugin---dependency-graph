@@ -136,6 +136,54 @@ class TaskActionsTest {
         }
 
         @Test
+        void removingExtraDependencyKeepsParent() {
+            Task table = create(ALEX, "Mesa");
+            Task wood = create(ALEX, "Madera");
+            Task stone = create(ALEX, "Piedra");
+            actions.addDependency(ALEX, table.id(), wood.id());
+            actions.addDependency(ALEX, table.id(), stone.id());
+
+            ActionResult result = actions.removeDependency(ALEX, table.id(), stone.id());
+
+            assertSuccess("\"Mesa\" ya no depende de \"Piedra\".", result);
+            assertTrue(result.details().isEmpty());
+            assertEquals(List.of(wood.id()), result.task().dependencies());
+        }
+
+        @Test
+        void removingVisualParentReportsNewParent() {
+            Task table = create(ALEX, "Mesa");
+            Task wood = create(ALEX, "Madera");
+            Task stone = create(ALEX, "Piedra");
+            actions.addDependency(ALEX, table.id(), wood.id());
+            actions.addDependency(ALEX, table.id(), stone.id());
+
+            ActionResult result = actions.removeDependency(ALEX, table.id(), wood.id());
+
+            assertSuccess("\"Mesa\" ya no depende de \"Madera\".", result);
+            assertEquals(List.of("En la pestaña ahora cuelga de \"Piedra\"."), result.details());
+        }
+
+        @Test
+        void removingLastDependencyHangsFromRoot() {
+            Task table = create(ALEX, "Mesa");
+            Task wood = create(ALEX, "Madera");
+            actions.addDependency(ALEX, table.id(), wood.id());
+
+            ActionResult result = actions.removeDependency(ALEX, table.id(), wood.id());
+
+            assertEquals(List.of("En la pestaña ahora cuelga directamente del raíz."), result.details());
+        }
+
+        @Test
+        void removingSomethingThatIsNotADependencyIsRejected() {
+            Task table = create(ALEX, "Mesa");
+            Task wood = create(ALEX, "Madera");
+
+            assertFailure("\"Mesa\" no depende de \"Madera\".", actions.removeDependency(ALEX, table.id(), wood.id()));
+        }
+
+        @Test
         void cycleIsRejectedWithTitles() {
             Task table = create(ALEX, "Mesa");
             Task wood = create(ALEX, "Madera");

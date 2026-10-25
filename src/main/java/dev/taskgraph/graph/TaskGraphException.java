@@ -16,6 +16,7 @@ public final class TaskGraphException extends RuntimeException {
         NOT_FOUND,
         SELF_DEPENDENCY,
         DUPLICATE_DEPENDENCY,
+        NOT_A_DEPENDENCY,
         CYCLE,
         RESOLVED_TASK_DEPENDENCY,
         ALREADY_ASSIGNED,

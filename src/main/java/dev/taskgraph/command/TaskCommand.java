@@ -73,6 +73,11 @@ public final class TaskCommand {
                 .then(Commands.literal("depende")
                         .then(quotedTask(TASK)
                                 .then(lastTask(DEPENDENCY).executes(this::addDependency))))
+                .then(Commands.literal("quitardep")
+                        .then(quotedTask(TASK)
+                                .then(Commands.argument(DEPENDENCY, StringArgumentType.greedyString())
+                                        .suggests(dependenciesOfTask())
+                                        .executes(this::removeDependency))))
                 .then(Commands.literal("asignar")
                         .then(lastTask(TASK).executes(this::assign)))
                 .then(Commands.literal("soltar")
@@ -108,6 +113,25 @@ public final class TaskCommand {
         };
     }
 
+    /** Suggests only the dependencies of the task typed in the previous argument. */
+    private SuggestionProvider<CommandSourceStack> dependenciesOfTask() {
+        return (context, builder) -> {
+            Optional<Task> task;
+            try {
+                task = actions.findByTitle(unquote(context.getArgument(TASK, String.class)));
+            } catch (IllegalArgumentException exception) {
+                task = Optional.empty();
+            }
+            String typed = Titles.key(unquote(builder.getRemaining()));
+            task.ifPresent(found -> found.dependencies().stream()
+                    .flatMap(id -> service.task(id).stream())
+                    .map(Task::title)
+                    .filter(title -> Titles.key(title).startsWith(typed))
+                    .forEach(builder::suggest));
+            return builder.buildFuture();
+        };
+    }
+
     private int help(CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
         sender.sendMessage(Component.text("Comandos de tareas:", NamedTextColor.GOLD));
@@ -116,6 +140,7 @@ public final class TaskCommand {
                 "renombrar \"<título>\" <nuevo título>",
                 "desc \"<título>\" <texto>",
                 "depende \"<título>\" <dependencia>",
+                "quitardep \"<título>\" <dependencia>",
                 "asignar <título>",
                 "soltar <título> — deja de estar asignada a vos",
                 "resolver <título>",
@@ -155,6 +180,15 @@ public final class TaskCommand {
             return dependency.isEmpty()
                     ? unknown(context, DEPENDENCY)
                     : actions.addDependency(actor, task.id(), dependency.get().id());
+        });
+    }
+
+    private int removeDependency(CommandContext<CommandSourceStack> context) {
+        return withTask(context, TASK, (actor, task) -> {
+            Optional<Task> dependency = lookup(context, DEPENDENCY);
+            return dependency.isEmpty()
+                    ? unknown(context, DEPENDENCY)
+                    : actions.removeDependency(actor, task.id(), dependency.get().id());
         });
     }
 
