@@ -45,8 +45,8 @@ class SyncPlanTest {
     @Test
     void worksWithGraphResolvedIds() {
         TaskGraph graph = new TaskGraph();
-        graph.create("a", "A", "minecraft:stone");
-        graph.create("b", "B", "minecraft:stone");
+        graph.create("a", "minecraft:stone");
+        graph.create("b", "minecraft:stone");
         graph.resolve("a");
 
         SyncPlan plan = SyncPlan.between(graph.resolvedIds(), Set.of("b"));

@@ -12,6 +12,7 @@ public final class TaskGraphException extends RuntimeException {
         INVALID_ID,
         INVALID_TITLE,
         DUPLICATE_ID,
+        DUPLICATE_TITLE,
         NOT_FOUND,
         SELF_DEPENDENCY,
         DUPLICATE_DEPENDENCY,

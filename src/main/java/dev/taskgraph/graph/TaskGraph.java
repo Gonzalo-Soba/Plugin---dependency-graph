@@ -44,10 +44,16 @@ public final class TaskGraph {
      */
     public static TaskGraph of(Collection<Task> stored, Collection<String> storedRemovedIds) {
         TaskGraph graph = new TaskGraph();
+        Set<String> titleKeys = new HashSet<>();
         for (Task task : stored) {
             validateId(task.id());
             validateTitle(task.id(), task.title());
-            if (graph.tasks.putIfAbsent(task.id(), task) != null) {
+            // Data written before titles had to be unique may repeat one; disambiguate instead of refusing to load.
+            Task unique = task;
+            while (!titleKeys.add(Titles.key(unique.title()))) {
+                unique = unique.withTitle(unique.title() + " (" + task.id() + ")");
+            }
+            if (graph.tasks.putIfAbsent(task.id(), unique) != null) {
                 throw new TaskGraphException(Reason.DUPLICATE_ID, task.id());
             }
         }
@@ -86,16 +92,34 @@ public final class TaskGraph {
         return copy;
     }
 
-    public Task create(String id, String title, String icon) {
-        validateId(id);
-        validateTitle(id, title);
-        if (tasks.containsKey(id)) {
-            throw new TaskGraphException(Reason.DUPLICATE_ID, id);
-        }
-        Task task = Task.create(id, title.strip(), icon);
+    /**
+     * Creates a task with an id derived from its title. Ids of deleted tasks are never reused, so a new
+     * task can't inherit progress that offline players still hold for an old one.
+     */
+    public Task create(String title, String icon) {
+        validateTitle(null, title);
+        String cleanTitle = Titles.clean(title);
+        requireUniqueTitle(cleanTitle, null);
+        String id = Titles.generateId(cleanTitle, candidate -> tasks.containsKey(candidate) || removedIds.contains(candidate));
+        Task task = Task.create(id, cleanTitle, icon);
         tasks.put(id, task);
-        removedIds.remove(id);
         return task;
+    }
+
+    public Task rename(String id, String newTitle) {
+        Task task = require(id);
+        validateTitle(id, newTitle);
+        String cleanTitle = Titles.clean(newTitle);
+        requireUniqueTitle(cleanTitle, id);
+        return replace(task.withTitle(cleanTitle));
+    }
+
+    /** Finds a task by title, ignoring case, accents and spacing. */
+    public Optional<Task> findByTitle(String title) {
+        String key = Titles.key(title);
+        return tasks.values().stream()
+                .filter(task -> Titles.key(task.title()).equals(key))
+                .findFirst();
     }
 
     public Task setDescription(String id, String description) {
@@ -294,7 +318,16 @@ public final class TaskGraph {
 
     private static void validateTitle(String id, String title) {
         if (title == null || title.isBlank()) {
-            throw new TaskGraphException(Reason.INVALID_TITLE, id);
+            throw new TaskGraphException(Reason.INVALID_TITLE, String.valueOf(id));
         }
+    }
+
+    /** Rejects a title already used by another task; {@code ownId} may keep its own title (e.g. case changes). */
+    private void requireUniqueTitle(String title, String ownId) {
+        findByTitle(title)
+                .filter(existing -> !existing.id().equals(ownId))
+                .ifPresent(existing -> {
+                    throw new TaskGraphException(Reason.DUPLICATE_TITLE, existing.id());
+                });
     }
 }

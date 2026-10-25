@@ -1,6 +1,7 @@
 package dev.taskgraph.storage;
 
 import dev.taskgraph.graph.Assignee;
+import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.graph.TaskGraphException;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,14 +37,14 @@ class JsonTaskStoreTest {
 
     private static TaskGraph sampleGraph() {
         TaskGraph graph = new TaskGraph();
-        graph.create("wood", "Juntar madera", "minecraft:oak_log");
-        graph.create("stone", "Picar piedra", "minecraft:cobblestone");
-        graph.create("furnace", "Armar un horno", "minecraft:furnace");
-        graph.addDependency("furnace", "stone");
-        graph.addDependency("furnace", "wood");
-        graph.setDescription("furnace", "Para cocinar la comida del pueblo: ñandú, ají y más");
-        graph.assign("stone", new Assignee(UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e"), "Steve"));
-        graph.resolve("wood");
+        Task wood = graph.create("Juntar madera", "minecraft:oak_log");
+        Task stone = graph.create("Picar piedra", "minecraft:cobblestone");
+        Task furnace = graph.create("Armar un horno", "minecraft:furnace");
+        graph.addDependency(furnace.id(), stone.id());
+        graph.addDependency(furnace.id(), wood.id());
+        graph.setDescription(furnace.id(), "Para cocinar la comida del pueblo: ñandú, ají y más");
+        graph.assign(stone.id(), new Assignee(UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e"), "Steve"));
+        graph.resolve(wood.id());
         return graph;
     }
 
@@ -72,12 +73,12 @@ class JsonTaskStoreTest {
     @Test
     void roundTripKeepsRemovedIds() {
         TaskGraph original = sampleGraph();
-        original.create("old", "Vieja", "minecraft:stone");
-        original.remove("old");
+        Task old = original.create("Vieja", "minecraft:stone");
+        original.remove(old.id());
 
         store.save(original);
 
-        assertEquals(Set.of("old"), store.load().removedIds());
+        assertEquals(Set.of(old.id()), store.load().removedIds());
     }
 
     @Test
@@ -93,7 +94,7 @@ class JsonTaskStoreTest {
     void saveOverwritesAndLeavesNoTemporaryFile() {
         store.save(sampleGraph());
         TaskGraph smaller = new TaskGraph();
-        smaller.create("only", "Una sola", "minecraft:stone");
+        smaller.create("Una sola", "minecraft:stone");
 
         store.save(smaller);
 

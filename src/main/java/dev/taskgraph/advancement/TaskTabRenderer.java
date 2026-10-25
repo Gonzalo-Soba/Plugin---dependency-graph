@@ -94,7 +94,6 @@ public final class TaskTabRenderer {
                     .toList();
             lines.add(Component.text("También requiere: " + String.join(", ", titles), NamedTextColor.YELLOW));
         }
-        lines.add(Component.text("[" + task.id() + "]", NamedTextColor.DARK_GRAY));
 
         // Column 0 is taken by the root, so tasks start one column to the right.
         return new AdvancementDisplayBuilder(icon(task), legacy(Component.text(task.title(), NamedTextColor.WHITE)))

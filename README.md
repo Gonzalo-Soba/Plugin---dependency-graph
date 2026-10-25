@@ -56,11 +56,12 @@ El mundo de prueba es plano, en modo creativo y pacífico. Así es fácil agarra
 
 Jugadores: **A** y **B**.
 
-- [ ] **La pestaña se ve y es legible.** A crea `madera`, `piedra`, `mesa` (depende de `madera`), `horno` (depende de `piedra` y después de `madera`) y `pico` (depende de `mesa` y `piedra`). La pestaña "Tareas del servidor" muestra el raíz a la izquierda, cada tarea a la derecha de sus dependencias, y ningún ícono encima de otro.
-- [ ] **Tildes y colores.** Crear una tarea con título y descripción con tildes y ñ, por ejemplo `/tarea crear jardin Jardín de la ñandú` y `/tarea desc jardin Regar todos los días`. En la pestaña se ven bien, con el título en blanco, la descripción en gris, "Asignada a" en celeste y "También requiere" en amarillo.
+- [ ] **La pestaña se ve y es legible.** A crea "Madera", "Piedra", "Mesa de trabajo" (depende de "Madera"), "Horno" (depende de "Piedra" y después de "Madera") y "Pico" (depende de "Mesa de trabajo" y "Piedra"). Por ejemplo: `/tarea crear Mesa de trabajo` y `/tarea depende "Mesa de trabajo" Madera`. La pestaña "Tareas del servidor" muestra el raíz a la izquierda, cada tarea a la derecha de sus dependencias, y ningún ícono encima de otro.
+- [ ] **Tildes y colores.** Crear una tarea con título y descripción con tildes y ñ, por ejemplo `/tarea crear Jardín de la ñandú` y `/tarea desc "Jardín de la ñandú" Regar todos los días`. En la pestaña se ven bien, con el título en blanco, la descripción en gris, "Asignada a" en celeste y "También requiere" en amarillo.
 - [ ] **Sin toasts ni anuncios al entrar o reconstruir.** Con tareas ya resueltas, B sale y vuelve a entrar: no aparece ningún toast ni mensaje de logro en el chat. Lo mismo cuando A edita cualquier tarea (`desc`, `asignar`) y la pestaña se reconstruye.
 - [ ] **`/tarea resolver` anuncia una sola vez.** A resuelve una tarea: A y B ven un único mensaje "✔ A resolvió la tarea ...", sin el anuncio de logro vanilla, y la tarea aparece completada para los dos.
-- [ ] **Revocación con jugador offline.** A resuelve `jardin` (sin dependencias) y B la ve completada. B sale. A borra `jardin` con `/tarea borrar jardin` y la vuelve a crear con `/tarea crear jardin Jardín`. B entra: `jardin` aparece **pendiente**, no completada.
+- [ ] **Revocación con jugador offline.** A resuelve "Jardín" (sin dependencias) y B la ve completada. B sale. A la borra con `/tarea borrar Jardín` y la vuelve a crear con `/tarea crear Jardín`. B entra: "Jardín" aparece **pendiente**, no completada.
+- [ ] **Títulos sin distinguir mayúsculas ni tildes.** `/tarea info jardin` encuentra "Jardín", y `/tarea crear JARDIN` se rechaza porque ya existe. `/tarea renombrar Jardín Huerta` cambia el nombre en la pestaña y conserva el estado.
 
 Si algo falla, guardá `run/logs/latest.log`.
 
@@ -72,16 +73,21 @@ Si el archivo está dañado o tiene datos inválidos (por ejemplo, un ciclo de d
 
 ## Comandos
 
-Escribir `/tarea` sin argumentos muestra la ayuda. Los ids se autocompletan con Tab.
+Escribir `/tarea` sin argumentos muestra la ayuda. Los títulos se autocompletan con Tab.
+
+Las tareas se nombran por su **título**, que es único: no distingue mayúsculas, tildes ni espacios repetidos ("Jardín" y "jardin" son la misma tarea).
+
+**Comillas:** cuando un título no es lo último del comando y tiene espacios o tildes, va entre comillas: `/tarea depende "Mesa de trabajo" Madera`. El autocompletado las agrega solo. El último argumento nunca las necesita.
 
 | Comando | Qué hace |
 |---|---|
-| `/tarea crear <id> <título>` | Crea una tarea. El ícono es el ítem que tenés en la mano (papel si está vacía). El id usa de 1 a 32 caracteres entre `a-z`, `0-9` y `_`. |
-| `/tarea desc <id> <texto>` | Cambia la descripción. |
-| `/tarea depende <id> <idDependencia>` | Hace que `<id>` dependa de `<idDependencia>`. Se rechaza si crea un ciclo. La primera dependencia es el padre visual; las siguientes se listan como "También requiere". |
-| `/tarea asignar <id>` | Te asigna la tarea (reemplaza al asignado anterior). |
-| `/tarea resolver <id>` | Marca la tarea como resuelta para todos. Requiere que todas sus dependencias estén resueltas. |
-| `/tarea info <id>` | Muestra estado, asignado, dependencias y qué tareas la necesitan. |
-| `/tarea borrar <id>` | Borra la tarea. Se rechaza si otras tareas dependen de ella. |
+| `/tarea crear <título>` | Crea una tarea. El ícono es el ítem que tenés en la mano (papel si está vacía). |
+| `/tarea renombrar "<título>" <nuevo título>` | Cambia el título. El estado, las dependencias y el progreso se conservan. |
+| `/tarea desc "<título>" <texto>` | Cambia la descripción. |
+| `/tarea depende "<título>" <dependencia>` | Hace que la tarea dependa de otra. Se rechaza si crea un ciclo. La primera dependencia es el padre visual; las siguientes se listan como "También requiere". |
+| `/tarea asignar <título>` | Te asigna la tarea (reemplaza al asignado anterior). |
+| `/tarea resolver <título>` | Marca la tarea como resuelta para todos. Requiere que todas sus dependencias estén resueltas. |
+| `/tarea info <título>` | Muestra estado, asignado, dependencias y qué tareas la necesitan. |
+| `/tarea borrar <título>` | Borra la tarea. Se rechaza si otras tareas dependen de ella. |
 
 Cada cambio se guarda en el JSON y regenera la pestaña de logros para todos los jugadores online.
