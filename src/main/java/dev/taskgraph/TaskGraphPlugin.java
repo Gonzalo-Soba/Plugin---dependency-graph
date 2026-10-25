@@ -10,6 +10,7 @@ import dev.taskgraph.command.TasksCommand;
 import dev.taskgraph.dialog.TaskDialogs;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.listener.PlayerSyncListener;
+import dev.taskgraph.listener.QuickAccessListener;
 import dev.taskgraph.service.TaskService;
 import dev.taskgraph.storage.JsonTaskStore;
 import dev.taskgraph.storage.TaskStoreException;
@@ -46,7 +47,9 @@ public final class TaskGraphPlugin extends JavaPlugin {
         TaskActions actions = new TaskActions(service,
                 message -> getServer().broadcast(Component.text(message, NamedTextColor.GREEN)), getLogger());
         TaskCommand command = new TaskCommand(service, actions);
-        TasksCommand tasksCommand = new TasksCommand(new TaskDialogs(this, service, actions));
+        TaskDialogs dialogs = new TaskDialogs(this, service, actions);
+        TasksCommand tasksCommand = new TasksCommand(dialogs);
+        getServer().getPluginManager().registerEvents(new QuickAccessListener(this, dialogs), this);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of());
             event.registrar().register(tasksCommand.build(), TasksCommand.DESCRIPTION, List.of());
