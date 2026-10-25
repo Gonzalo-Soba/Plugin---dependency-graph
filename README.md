@@ -2,7 +2,7 @@
 
 Plugin de Paper para organizar las tareas comunales de un servidor de Minecraft. Las tareas forman un grafo de dependencias que se muestra en la pantalla de logros (advancements) vanilla, así que los jugadores no necesitan mods en el cliente.
 
-> Estado: en desarrollo. El plugin ya muestra la pestaña "Tareas del servidor" con las tareas guardadas; los comandos para editarlas llegan en próximas versiones.
+> Estado: MVP. Todos los jugadores pueden usar todos los comandos (todavía no hay permisos finos).
 
 ## Cómo se ve
 
@@ -39,4 +39,16 @@ Si el archivo está dañado o tiene datos inválidos (por ejemplo, un ciclo de d
 
 ## Comandos
 
-Todavía no hay comandos disponibles.
+Escribir `/tarea` sin argumentos muestra la ayuda. Los ids se autocompletan con Tab.
+
+| Comando | Qué hace |
+|---|---|
+| `/tarea crear <id> <título>` | Crea una tarea. El ícono es el ítem que tenés en la mano (papel si está vacía). El id usa de 1 a 32 caracteres entre `a-z`, `0-9` y `_`. |
+| `/tarea desc <id> <texto>` | Cambia la descripción. |
+| `/tarea depende <id> <idDependencia>` | Hace que `<id>` dependa de `<idDependencia>`. Se rechaza si crea un ciclo. La primera dependencia es el padre visual; las siguientes se listan como "También requiere". |
+| `/tarea asignar <id>` | Te asigna la tarea (reemplaza al asignado anterior). |
+| `/tarea resolver <id>` | Marca la tarea como resuelta para todos. Requiere que todas sus dependencias estén resueltas. |
+| `/tarea info <id>` | Muestra estado, asignado, dependencias y qué tareas la necesitan. |
+| `/tarea borrar <id>` | Borra la tarea. Se rechaza si otras tareas dependen de ella. |
+
+Cada cambio se guarda en el JSON y regenera la pestaña de logros para todos los jugadores online.
