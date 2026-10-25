@@ -237,6 +237,47 @@ class TaskGraphTest {
         void rejectsMissingTask() {
             assertRejected(Reason.NOT_FOUND, () -> graph.remove("missing"));
         }
+
+        @Test
+        void remembersRemovedIdsUntilCreatedAgain() {
+            createAll("a", "b");
+            graph.remove("b");
+            graph.remove("a");
+
+            assertEquals(List.of("b", "a"), List.copyOf(graph.removedIds()));
+
+            graph.create("a", "Again", ICON);
+            assertEquals(Set.of("b"), graph.removedIds());
+        }
+
+        @Test
+        void rejectedRemovalDoesNotRecordId() {
+            createAll("a", "b");
+            graph.addDependency("b", "a");
+
+            assertThrows(TaskGraphException.class, () -> graph.remove("a"));
+            assertTrue(graph.removedIds().isEmpty());
+        }
+    }
+
+    @Nested
+    class Copy {
+
+        @Test
+        void changesToCopyDoNotAffectOriginal() {
+            createAll("a", "b");
+            graph.remove("b");
+            TaskGraph copy = graph.copy();
+
+            copy.create("c", "C", ICON);
+            copy.resolve("a");
+            copy.remove("c");
+
+            assertEquals(List.of("a"), graph.tasks().stream().map(Task::id).toList());
+            assertFalse(graph.get("a").orElseThrow().resolved());
+            assertEquals(Set.of("b"), graph.removedIds());
+            assertEquals(Set.of("b", "c"), copy.removedIds());
+        }
     }
 
     @Nested
@@ -301,6 +342,13 @@ class TaskGraphTest {
 
             assertEquals(List.of("a", "b"), loaded.tasks().stream().map(Task::id).toList());
             assertEquals(List.of("b"), loaded.dependents("a"));
+        }
+
+        @Test
+        void keepsRemovedIdsThatAreNotExistingTasks() {
+            TaskGraph loaded = TaskGraph.of(List.of(task("a", false)), List.of("old", "a"));
+
+            assertEquals(Set.of("old"), loaded.removedIds());
         }
 
         @Test

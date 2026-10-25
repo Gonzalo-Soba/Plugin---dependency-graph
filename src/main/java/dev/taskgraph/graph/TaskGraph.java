@@ -5,6 +5,7 @@ import dev.taskgraph.graph.TaskGraphException.Reason;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -28,11 +29,20 @@ public final class TaskGraph {
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9_]{1,32}");
 
     private final Map<String, Task> tasks = new LinkedHashMap<>();
+    // Ids of deleted tasks. Players who were offline at deletion may still hold progress for them.
+    private final Set<String> removedIds = new LinkedHashSet<>();
 
     /**
      * Rebuilds a graph from stored tasks, rejecting data that breaks any graph rule.
      */
     public static TaskGraph of(Collection<Task> stored) {
+        return of(stored, List.of());
+    }
+
+    /**
+     * Rebuilds a graph from stored tasks and removed ids. Removed ids that belong to an existing task are dropped.
+     */
+    public static TaskGraph of(Collection<Task> stored, Collection<String> storedRemovedIds) {
         TaskGraph graph = new TaskGraph();
         for (Task task : stored) {
             validateId(task.id());
@@ -60,7 +70,20 @@ public final class TaskGraph {
             }
         }
         graph.topologicalOrder();
+        for (String removedId : storedRemovedIds) {
+            if (!graph.tasks.containsKey(removedId)) {
+                graph.removedIds.add(removedId);
+            }
+        }
         return graph;
+    }
+
+    /** Independent copy, so a change can be tried and discarded without touching this graph. */
+    public TaskGraph copy() {
+        TaskGraph copy = new TaskGraph();
+        copy.tasks.putAll(tasks);
+        copy.removedIds.addAll(removedIds);
+        return copy;
     }
 
     public Task create(String id, String title, String icon) {
@@ -71,6 +94,7 @@ public final class TaskGraph {
         }
         Task task = Task.create(id, title.strip(), icon);
         tasks.put(id, task);
+        removedIds.remove(id);
         return task;
     }
 
@@ -124,6 +148,7 @@ public final class TaskGraph {
         if (!dependents.isEmpty()) {
             throw new TaskGraphException(Reason.HAS_DEPENDENTS, id, dependents);
         }
+        removedIds.add(id);
         return tasks.remove(id);
     }
 
@@ -161,6 +186,11 @@ public final class TaskGraph {
         return require(id).dependencies().stream()
                 .filter(dependencyId -> !tasks.get(dependencyId).resolved())
                 .toList();
+    }
+
+    /** Ids of deleted tasks that have not been created again, in deletion order. */
+    public Set<String> removedIds() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(removedIds));
     }
 
     public Set<String> resolvedIds() {
