@@ -2,7 +2,14 @@
 
 Plugin de Paper para organizar las tareas comunales de un servidor de Minecraft. Las tareas forman un grafo de dependencias que se muestra en la pantalla de logros (advancements) vanilla, así que los jugadores no necesitan mods en el cliente.
 
-> Estado: en desarrollo. Por ahora el plugin solo se carga en el servidor; los comandos llegan en próximas versiones.
+> Estado: en desarrollo. El plugin ya muestra la pestaña "Tareas del servidor" con las tareas guardadas; los comandos para editarlas llegan en próximas versiones.
+
+## Cómo se ve
+
+- Cada tarea es un logro en la pestaña "Tareas del servidor".
+- Las tareas sin dependencias cuelgan del logro raíz. La primera dependencia de cada tarea es la línea que la une con su padre; las demás aparecen en la descripción como "También requiere: ...".
+- Las columnas indican la profundidad: todo lo que una tarea requiere queda a su izquierda.
+- El progreso es comunal: una tarea resuelta aparece completada para todos los jugadores, incluidos los que entran después.
 
 ## Requisitos
 
