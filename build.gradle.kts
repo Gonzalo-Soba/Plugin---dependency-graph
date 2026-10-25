@@ -8,6 +8,8 @@ version = "0.1.0-SNAPSHOT"
 val paperVersion = "26.3.build.222-stable"
 val uaapiVersion = "3.0.0-beta-4"
 val junitVersion = "6.1.3"
+// Must match the Gson version exposed by paper-api, which provides it at runtime.
+val gsonVersion = "2.14.0"
 
 repositories {
     mavenCentral()
@@ -34,6 +36,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("com.google.code.gson:gson:$gsonVersion")
 }
 
 java {
