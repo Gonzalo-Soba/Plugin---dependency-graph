@@ -24,6 +24,12 @@ En Windows: `gradlew.bat build`. El jar queda en `build/libs/`.
 2. Copiar el jar de `build/libs/` a la misma carpeta `plugins/`.
 3. Reiniciar el servidor.
 
+## Datos
+
+Las tareas se guardan en `plugins/TaskGraph/tasks.json`. Ese archivo es la fuente de verdad: el progreso que ve cada jugador en la pantalla de logros se sincroniza contra él.
+
+Si el archivo está dañado o tiene datos inválidos (por ejemplo, un ciclo de dependencias), el plugin se desactiva al arrancar y deja el archivo intacto. Revisar el log del servidor, corregir el archivo y reiniciar.
+
 ## Comandos
 
 Todavía no hay comandos disponibles.
