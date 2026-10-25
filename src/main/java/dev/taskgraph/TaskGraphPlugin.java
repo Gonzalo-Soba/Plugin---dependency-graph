@@ -6,6 +6,8 @@ import dev.taskgraph.advancement.ProgressSynchronizer;
 import dev.taskgraph.advancement.TaskTabPublisher;
 import dev.taskgraph.advancement.TaskTabRenderer;
 import dev.taskgraph.command.TaskCommand;
+import dev.taskgraph.command.TasksCommand;
+import dev.taskgraph.dialog.TaskDialogs;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.listener.PlayerSyncListener;
 import dev.taskgraph.service.TaskService;
@@ -44,8 +46,11 @@ public final class TaskGraphPlugin extends JavaPlugin {
         TaskActions actions = new TaskActions(service,
                 message -> getServer().broadcast(Component.text(message, NamedTextColor.GREEN)), getLogger());
         TaskCommand command = new TaskCommand(service, actions);
-        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
-                event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of()));
+        TasksCommand tasksCommand = new TasksCommand(new TaskDialogs(this, service, actions));
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of());
+            event.registrar().register(tasksCommand.build(), TasksCommand.DESCRIPTION, List.of());
+        });
     }
 
     @Override
