@@ -8,6 +8,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.taskgraph.action.ActionResult;
 import dev.taskgraph.action.TaskActions;
+import dev.taskgraph.action.TaskTexts;
 import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
@@ -20,7 +21,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,15 +37,12 @@ public final class TaskCommand {
 
     public static final String NAME = "tarea";
     public static final String DESCRIPTION = "Tareas comunales del servidor";
-    /** Declared in paper-plugin.yml; granted to operators by default. The console always has it. */
-    public static final String ADMIN_PERMISSION = "taskgraph.admin";
 
     private static final String TASK = "tarea";
     private static final String DEPENDENCY = "dependencia";
     private static final String TITLE = "titulo";
     private static final String NEW_TITLE = "nuevoTitulo";
     private static final String TEXT = "texto";
-    private static final String FALLBACK_ICON = "minecraft:paper";
 
     private final TaskService service;
     private final TaskActions actions;
@@ -159,9 +156,7 @@ public final class TaskCommand {
             return fail(sender, "Solo un jugador puede crear tareas: el ícono es el ítem que tiene en la mano.");
         }
         String title = unquote(StringArgumentType.getString(context, TITLE));
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        String icon = hand.isEmpty() ? FALLBACK_ICON : hand.getType().getKey().asString();
-        return report(sender, actions.create(actor(sender), title, icon, hand.isEmpty()));
+        return report(sender, actions.create(Senders.actor(sender), title, Senders.iconInHand(player), Senders.handIsEmpty(player)));
     }
 
     private int rename(CommandContext<CommandSourceStack> context) {
@@ -226,8 +221,8 @@ public final class TaskCommand {
                 + task.creatorOptional().map(PlayerRef::name).orElse("desconocido"), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Asignada a: "
                 + task.assigneeOptional().map(PlayerRef::name).orElse("nadie"), NamedTextColor.AQUA));
-        sender.sendMessage(Component.text("Depende de: " + describeTasks(graph, task.dependencies()), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("La necesitan: " + describeTasks(graph, graph.dependents(task.id())), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Depende de: " + TaskTexts.taskList(graph, task.dependencies()), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("La necesitan: " + TaskTexts.taskList(graph, graph.dependents(task.id())), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Ícono: " + task.icon(), NamedTextColor.DARK_GRAY));
         return Command.SINGLE_SUCCESS;
     }
@@ -244,7 +239,7 @@ public final class TaskCommand {
         if (task.isEmpty()) {
             return report(sender, unknown(context, argument));
         }
-        return report(sender, action.apply(actor(sender), task.get()));
+        return report(sender, action.apply(Senders.actor(sender), task.get()));
     }
 
     private Optional<Task> lookup(CommandContext<CommandSourceStack> context, String argument) {
@@ -254,17 +249,6 @@ public final class TaskCommand {
     private static ActionResult unknown(CommandContext<CommandSourceStack> context, String argument) {
         String title = unquote(StringArgumentType.getString(context, argument));
         return new ActionResult(false, null, TaskActions.unknownTitle(title), List.of());
-    }
-
-    private static String describeTasks(TaskGraph graph, List<String> ids) {
-        if (ids.isEmpty()) {
-            return "nada";
-        }
-        return String.join(", ", ids.stream()
-                .map(id -> graph.get(id)
-                        .map(task -> (task.resolved() ? "✔ " : "✘ ") + task.title())
-                        .orElse(id))
-                .toList());
     }
 
     /** Errors in red, the main message in green and details in gray, as the commands always showed them. */
@@ -277,13 +261,6 @@ public final class TaskCommand {
             sender.sendMessage(Component.text(detail, NamedTextColor.GRAY));
         }
         return Command.SINGLE_SUCCESS;
-    }
-
-    private static Actor actor(CommandSender sender) {
-        boolean admin = sender.hasPermission(ADMIN_PERMISSION);
-        return sender instanceof Player player
-                ? Actor.player(player.getUniqueId(), player.getName(), admin)
-                : new Actor(null, sender.getName(), admin);
     }
 
     /** Greedy arguments keep quotes literally; drop them when the player typed a quoted title anyway. */

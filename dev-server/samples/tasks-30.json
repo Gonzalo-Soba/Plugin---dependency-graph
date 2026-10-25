@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "juntar_madera",
+      "title": "Juntar madera",
+      "description": "Tarea de prueba 1.",
+      "icon": "minecraft:oak_log",
+      "dependencies": [],
+      "resolved": true
+    },
+    {
+      "id": "picar_piedra",
+      "title": "Picar piedra",
+      "description": "Tarea de prueba 2.",
+      "icon": "minecraft:cobblestone",
+      "dependencies": [],
+      "resolved": true
+    },
+    {
+      "id": "mesa_de_trabajo",
+      "title": "Mesa de trabajo",
+      "description": "Tarea de prueba 3.",
+      "icon": "minecraft:crafting_table",
+      "dependencies": [
+        "juntar_madera"
+      ],
+      "resolved": true
+    },
+    {
+      "id": "horno",
+      "title": "Horno",
+      "description": "Tarea de prueba 4.",
+      "icon": "minecraft:furnace",
+      "dependencies": [
+        "picar_piedra"
+      ],
+      "resolved": true
+    },
+    {
+      "id": "pico_de_piedra",
+      "title": "Pico de piedra",
+      "description": "Tarea de prueba 5.",
+      "icon": "minecraft:stone_pickaxe",
+      "dependencies": [
+        "mesa_de_trabajo",
+        "picar_piedra"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "antorchas",
+      "title": "Antorchas",
+      "description": "Tarea de prueba 6.",
+      "icon": "minecraft:torch",
+      "dependencies": [
+        "juntar_madera"
+      ],
+      "resolved": true
+    },
+    {
+      "id": "cama",
+      "title": "Cama",
+      "description": "Tarea de prueba 7.",
+      "icon": "minecraft:red_bed",
+      "dependencies": [
+        "mesa_de_trabajo"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "granja_de_trigo",
+      "title": "Granja de trigo",
+      "description": "Tarea de prueba 8.",
+      "icon": "minecraft:wheat",
+      "dependencies": [
+        "mesa_de_trabajo"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "pan_para_todos",
+      "title": "Pan para todos",
+      "description": "Tarea de prueba 9.",
+      "icon": "minecraft:bread",
+      "dependencies": [
+        "granja_de_trigo",
+        "horno"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "mina_de_hierro",
+      "title": "Mina de hierro",
+      "description": "Tarea de prueba 10.",
+      "icon": "minecraft:iron_ore",
+      "dependencies": [
+        "pico_de_piedra"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "fundir_hierro",
+      "title": "Fundir hierro",
+      "description": "Tarea de prueba 11.",
+      "icon": "minecraft:iron_ingot",
+      "dependencies": [
+        "mina_de_hierro",
+        "horno"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "pico_de_hierro",
+      "title": "Pico de hierro",
+      "description": "Tarea de prueba 12.",
+      "icon": "minecraft:iron_pickaxe",
+      "dependencies": [
+        "fundir_hierro"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "escudo",
+      "title": "Escudo",
+      "description": "Tarea de prueba 13.",
+      "icon": "minecraft:shield",
+      "dependencies": [
+        "fundir_hierro"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "armadura_de_hierro",
+      "title": "Armadura de hierro",
+      "description": "Tarea de prueba 14.",
+      "icon": "minecraft:iron_chestplate",
+      "dependencies": [
+        "fundir_hierro",
+        "escudo"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "corral_de_vacas",
+      "title": "Corral de vacas",
+      "description": "Tarea de prueba 15.",
+      "icon": "minecraft:cow_spawn_egg",
+      "dependencies": [
+        "granja_de_trigo"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "biblioteca",
+      "title": "Biblioteca",
+      "description": "Tarea de prueba 16.",
+      "icon": "minecraft:bookshelf",
+      "dependencies": [
+        "papel_y_libros",
+        "juntar_madera"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "mesa_de_encantamientos",
+      "title": "Mesa de encantamientos",
+      "description": "Tarea de prueba 17.",
+      "icon": "minecraft:enchanting_table",
+      "dependencies": [
+        "biblioteca",
+        "pico_de_hierro"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "portal_al_nether",
+      "title": "Portal al Nether",
+      "description": "Tarea de prueba 18.",
+      "icon": "minecraft:obsidian",
+      "dependencies": [
+        "pico_de_hierro"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "fortaleza_del_nether",
+      "title": "Fortaleza del Nether",
+      "description": "Tarea de prueba 19.",
+      "icon": "minecraft:nether_bricks",
+      "dependencies": [
+        "portal_al_nether"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "varas_de_blaze",
+      "title": "Varas de blaze",
+      "description": "Tarea de prueba 20.",
+      "icon": "minecraft:blaze_rod",
+      "dependencies": [
+        "fortaleza_del_nether"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "ojos_de_ender",
+      "title": "Ojos de ender",
+      "description": "Tarea de prueba 21.",
+      "icon": "minecraft:ender_eye",
+      "dependencies": [
+        "varas_de_blaze",
+        "mesa_de_encantamientos"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "granja_de_cana",
+      "title": "Granja de caña",
+      "description": "Tarea de prueba 22.",
+      "icon": "minecraft:sugar_cane",
+      "dependencies": [
+        "juntar_madera"
+      ],
+      "resolved": true
+    },
+    {
+      "id": "papel_y_libros",
+      "title": "Papel y libros",
+      "description": "Tarea de prueba 23.",
+      "icon": "minecraft:book",
+      "dependencies": [
+        "granja_de_cana"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "jardin_de_flores",
+      "title": "Jardín de flores",
+      "description": "Tarea de prueba 24.",
+      "icon": "minecraft:poppy",
+      "dependencies": [],
+      "resolved": false
+    },
+    {
+      "id": "puente_sobre_el_rio",
+      "title": "Puente sobre el río",
+      "description": "Tarea de prueba 25.",
+      "icon": "minecraft:oak_planks",
+      "dependencies": [
+        "juntar_madera",
+        "picar_piedra"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "faro_del_pueblo",
+      "title": "Faro del pueblo",
+      "description": "Tarea de prueba 26.",
+      "icon": "minecraft:glowstone",
+      "dependencies": [
+        "picar_piedra"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "muralla_norte",
+      "title": "Muralla norte",
+      "description": "Tarea de prueba 27.",
+      "icon": "minecraft:stone_bricks",
+      "dependencies": [
+        "picar_piedra",
+        "puente_sobre_el_rio"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "plaza_central",
+      "title": "Plaza central",
+      "description": "Tarea de prueba 28.",
+      "icon": "minecraft:smooth_stone",
+      "dependencies": [
+        "puente_sobre_el_rio"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "pozo_de_agua",
+      "title": "Pozo de agua",
+      "description": "Tarea de prueba 29.",
+      "icon": "minecraft:water_bucket",
+      "dependencies": [
+        "picar_piedra"
+      ],
+      "resolved": true
+    },
+    {
+      "id": "torre_de_vigilancia",
+      "title": "Torre de vigilancia",
+      "description": "Tarea de prueba 30.",
+      "icon": "minecraft:spyglass",
+      "dependencies": [
+        "muralla_norte",
+        "faro_del_pueblo"
+      ],
+      "resolved": false
+    }
+  ],
+  "removedIds": []
+}

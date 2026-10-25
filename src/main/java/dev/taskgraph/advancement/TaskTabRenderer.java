@@ -37,7 +37,6 @@ public final class TaskTabRenderer {
     private static final String TASK_KEY_PREFIX = "task/";
     private static final String BACKGROUND_TEXTURE = "textures/block/stone_bricks.png";
     private static final Material ROOT_ICON = Material.WRITABLE_BOOK;
-    private static final Material FALLBACK_ICON = Material.PAPER;
 
     // UAAPI takes bungee-chat components; legacy strings let the rest of the plugin stay on Adventure.
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
@@ -96,19 +95,11 @@ public final class TaskTabRenderer {
         }
 
         // Column 0 is taken by the root, so tasks start one column to the right.
-        return new AdvancementDisplayBuilder(icon(task), legacy(Component.text(task.title(), NamedTextColor.WHITE)))
+        return new AdvancementDisplayBuilder(TaskIcons.of(task.icon()), legacy(Component.text(task.title(), NamedTextColor.WHITE)))
                 .description(lines.stream().map(TaskTabRenderer::legacy).toArray(String[]::new))
                 .taskFrame()
                 .coords(position.column() + 1, position.row())
                 .build();
-    }
-
-    private static ItemStack icon(Task task) {
-        Material material = Material.matchMaterial(task.icon());
-        if (material == null || !material.isItem() || material.isAir()) {
-            material = FALLBACK_ICON;
-        }
-        return new ItemStack(material);
     }
 
     private static String legacy(Component component) {
