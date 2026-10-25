@@ -3,13 +3,16 @@ package dev.taskgraph;
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
 import dev.taskgraph.advancement.ProgressSynchronizer;
 import dev.taskgraph.advancement.TaskTabRenderer;
+import dev.taskgraph.command.TaskCommand;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.listener.PlayerSyncListener;
 import dev.taskgraph.service.TaskService;
 import dev.taskgraph.storage.JsonTaskStore;
 import dev.taskgraph.storage.TaskStoreException;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.List;
 import java.util.logging.Level;
 
 public final class TaskGraphPlugin extends JavaPlugin {
@@ -34,6 +37,10 @@ public final class TaskGraphPlugin extends JavaPlugin {
         service = new TaskService(store, new TaskTabRenderer(api), new ProgressSynchronizer(getLogger()), graph);
         service.start();
         getServer().getPluginManager().registerEvents(new PlayerSyncListener(service), this);
+
+        TaskCommand command = new TaskCommand(service, getLogger());
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+                event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of()));
     }
 
     @Override
