@@ -254,6 +254,57 @@ public final class TaskGraph {
                 .toList();
     }
 
+    public TaskStatus status(String id) {
+        Task task = require(id);
+        if (task.resolved()) {
+            return TaskStatus.RESOLVED;
+        }
+        return unresolvedDependencies(id).isEmpty() ? TaskStatus.AVAILABLE : TaskStatus.BLOCKED;
+    }
+
+    /**
+     * Tasks for the task list: available first, then blocked, then resolved; alphabetical by title inside
+     * each group, so a task is easy to find in a long list.
+     */
+    public List<Task> listOrder() {
+        Comparator<Task> byStatus = Comparator.comparing(task -> status(task.id()));
+        return tasks.values().stream()
+                .sorted(byStatus.thenComparing(task -> Titles.key(task.title())))
+                .toList();
+    }
+
+    /**
+     * Tasks that {@code id} could depend on right now: not itself, not already a dependency, not one that
+     * already depends on it (directly or not, which would close a cycle), and only resolved ones when the
+     * task itself is resolved. Alphabetical by title.
+     */
+    public List<Task> dependencyCandidates(String id) {
+        Task task = require(id);
+        Set<String> dependsOnTask = transitiveDependents(id);
+        return tasks.values().stream()
+                .filter(candidate -> !candidate.id().equals(id))
+                .filter(candidate -> !task.dependencies().contains(candidate.id()))
+                .filter(candidate -> !dependsOnTask.contains(candidate.id()))
+                .filter(candidate -> !task.resolved() || candidate.resolved())
+                .sorted(Comparator.comparing(candidate -> Titles.key(candidate.title())))
+                .toList();
+    }
+
+    /** Ids of every task that depends on {@code id}, directly or through other tasks. */
+    private Set<String> transitiveDependents(String id) {
+        Set<String> found = new HashSet<>();
+        Deque<String> queue = new ArrayDeque<>(List.of(id));
+        while (!queue.isEmpty()) {
+            String current = queue.poll();
+            for (Task task : tasks.values()) {
+                if (task.dependencies().contains(current) && found.add(task.id())) {
+                    queue.add(task.id());
+                }
+            }
+        }
+        return found;
+    }
+
     /** Ids of deleted tasks that have not been created again, in deletion order. */
     public Set<String> removedIds() {
         return Collections.unmodifiableSet(new LinkedHashSet<>(removedIds));

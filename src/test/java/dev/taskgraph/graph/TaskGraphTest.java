@@ -11,6 +11,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -491,6 +492,128 @@ class TaskGraphTest {
 
             assertEquals(graph.topologicalOrder(), graph.topologicalOrder());
             assertEquals(List.of("c", "b", "a"), graph.topologicalOrder().stream().map(Task::id).toList());
+        }
+    }
+
+    @Nested
+    class Status {
+
+        @Test
+        void reflectsResolutionAndDependencies() {
+            createAll("a", "b", "c");
+            graph.addDependency("b", "a");
+            graph.resolve("c");
+
+            assertEquals(TaskStatus.AVAILABLE, graph.status("a"));
+            assertEquals(TaskStatus.BLOCKED, graph.status("b"));
+            assertEquals(TaskStatus.RESOLVED, graph.status("c"));
+
+            graph.resolve("a");
+            assertEquals(TaskStatus.AVAILABLE, graph.status("b"));
+        }
+    }
+
+    @Nested
+    class ListOrder {
+
+        @Test
+        void availableThenBlockedThenResolvedAlphabeticalInside() {
+            for (String title : List.of("Zanahoria", "Árbol", "Mesa", "banco", "Puerta", "Cama")) {
+                graph.create(title, ICON);
+            }
+            String mesa = graph.findByTitle("Mesa").orElseThrow().id();
+            String puerta = graph.findByTitle("Puerta").orElseThrow().id();
+            String arbol = graph.findByTitle("Árbol").orElseThrow().id();
+            String cama = graph.findByTitle("Cama").orElseThrow().id();
+            graph.addDependency(mesa, arbol);
+            graph.addDependency(puerta, mesa);
+            graph.resolve(cama);
+
+            List<String> titles = graph.listOrder().stream().map(Task::title).toList();
+
+            // Available (accents and case ignored when sorting), then blocked, then resolved.
+            assertEquals(List.of("Árbol", "banco", "Zanahoria", "Mesa", "Puerta", "Cama"), titles);
+        }
+
+        @Test
+        void handlesThirtyTasks() {
+            for (int i = 1; i <= 30; i++) {
+                graph.create("Tarea %02d".formatted(i), ICON);
+            }
+            for (int i = 2; i <= 30; i += 3) {
+                graph.addDependency("tarea_%02d".formatted(i), "tarea_%02d".formatted(i - 1));
+            }
+            // Tasks 1, 7, 13... have no dependencies; resolving them leaves 2, 8, 14... available and 5, 11, 17... blocked.
+            for (int i = 1; i <= 30; i += 6) {
+                graph.resolve("tarea_%02d".formatted(i));
+            }
+
+            List<Task> order = graph.listOrder();
+
+            assertEquals(30, order.size());
+            assertEquals(Set.of(TaskStatus.values()),
+                    order.stream().map(task -> graph.status(task.id())).collect(Collectors.toSet()));
+            List<TaskStatus> statuses = order.stream().map(task -> graph.status(task.id())).toList();
+            List<TaskStatus> sorted = statuses.stream().sorted().toList();
+            assertEquals(sorted, statuses);
+        }
+    }
+
+    @Nested
+    class DependencyCandidates {
+
+        @Test
+        void excludesSelfExistingDependenciesAndCycles() {
+            createAll("a", "b", "c", "d", "e");
+            graph.addDependency("b", "a");
+            graph.addDependency("c", "b");
+            graph.addDependency("b", "d");
+
+            // b already depends on a and d; c depends on b, so b depending on c would close a cycle.
+            assertEquals(List.of("e"), graph.dependencyCandidates("b").stream().map(Task::id).toList());
+            // b and c depend on a, so a can only depend on d or e.
+            assertEquals(List.of("d", "e"), graph.dependencyCandidates("a").stream().map(Task::id).toList());
+        }
+
+        @Test
+        void excludesTransitiveDependents() {
+            createAll("a", "b", "c", "d");
+            graph.addDependency("b", "a");
+            graph.addDependency("c", "b");
+
+            assertEquals(List.of("d"), graph.dependencyCandidates("a").stream().map(Task::id).toList());
+        }
+
+        @Test
+        void everyCandidateCanBeAdded() {
+            createAll("a", "b", "c", "d", "e");
+            graph.addDependency("c", "a");
+            graph.addDependency("d", "c");
+            graph.resolve("b");
+
+            for (Task candidate : graph.dependencyCandidates("c")) {
+                TaskGraph copy = graph.copy();
+                copy.addDependency("c", candidate.id());
+            }
+        }
+
+        @Test
+        void resolvedTaskOnlyGetsResolvedCandidates() {
+            createAll("a", "b", "c");
+            graph.resolve("a");
+            graph.resolve("b");
+
+            assertEquals(List.of("b"), graph.dependencyCandidates("a").stream().map(Task::id).toList());
+        }
+
+        @Test
+        void sortedByTitle() {
+            graph.create("Zanahoria", ICON);
+            Task target = graph.create("Mesa", ICON);
+            graph.create("árbol", ICON);
+
+            assertEquals(List.of("árbol", "Zanahoria"),
+                    graph.dependencyCandidates(target.id()).stream().map(Task::title).toList());
         }
     }
 
