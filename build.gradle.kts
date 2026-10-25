@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dev.taskgraph"
-version = "0.1.0"
+version = "0.2.0-SNAPSHOT"
 
 // The dev server runs the same Paper build the plugin compiles against.
 val minecraftVersion = "26.3"

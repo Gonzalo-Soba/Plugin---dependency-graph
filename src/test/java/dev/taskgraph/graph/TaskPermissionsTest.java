@@ -15,9 +15,9 @@ class TaskPermissionsTest {
     private static final PlayerRef ALEX = new PlayerRef(UUID.randomUUID(), "Alex");
     private static final PlayerRef STEVE = new PlayerRef(UUID.randomUUID(), "Steve");
 
-    private static final Actor ALEX_PLAYER = Actor.player(ALEX.uuid(), false);
-    private static final Actor STEVE_PLAYER = Actor.player(STEVE.uuid(), false);
-    private static final Actor ADMIN = Actor.player(UUID.randomUUID(), true);
+    private static final Actor ALEX_PLAYER = Actor.player(ALEX.uuid(), ALEX.name(), false);
+    private static final Actor STEVE_PLAYER = Actor.player(STEVE.uuid(), STEVE.name(), false);
+    private static final Actor ADMIN = Actor.player(UUID.randomUUID(), "Admin", true);
 
     private static Task task(PlayerRef creator, PlayerRef assignee) {
         return new Task("a", "A", "", "minecraft:stone", List.of(), assignee, false, creator);

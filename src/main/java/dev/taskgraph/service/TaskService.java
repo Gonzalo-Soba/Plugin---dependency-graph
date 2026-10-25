@@ -1,42 +1,41 @@
 package dev.taskgraph.service;
 
-import com.fren_gor.ultimateAdvancementAPI.AdvancementTab;
-import dev.taskgraph.advancement.ProgressSynchronizer;
-import dev.taskgraph.advancement.TaskTabRenderer;
 import dev.taskgraph.graph.PlayerRef;
 import dev.taskgraph.graph.Task;
 import dev.taskgraph.graph.TaskGraph;
 import dev.taskgraph.storage.JsonTaskStore;
-import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * Single entry point for task changes. Each change runs on a copy of the graph and only replaces it
  * once the JSON file is saved, so a rejected or failed change never leaves memory and disk apart.
- * After every change the tab is rebuilt and online players are synced.
+ * After every change the listener receives the new graph (the plugin rebuilds the advancement tab there).
+ * Free of Paper types so it can be unit tested.
  */
 public final class TaskService {
 
     private final JsonTaskStore store;
-    private final TaskTabRenderer renderer;
-    private final ProgressSynchronizer synchronizer;
+    private final Consumer<TaskGraph> onChange;
 
     private TaskGraph graph;
-    private AdvancementTab tab;
 
-    public TaskService(JsonTaskStore store, TaskTabRenderer renderer, ProgressSynchronizer synchronizer, TaskGraph graph) {
+    /**
+     * @param onChange receives the current graph on {@link #start()} and after every saved change. The graph
+     *                 it gets is never modified afterwards: each change replaces it with a new instance.
+     */
+    public TaskService(JsonTaskStore store, TaskGraph graph, Consumer<TaskGraph> onChange) {
         this.store = store;
-        this.renderer = renderer;
-        this.synchronizer = synchronizer;
         this.graph = graph;
+        this.onChange = onChange;
     }
 
-    /** Builds the tab for the loaded graph and syncs players already online (e.g. after a reload). */
+    /** Publishes the loaded graph, e.g. to build the tab and sync players already online after a reload. */
     public void start() {
-        refresh();
+        onChange.accept(graph);
     }
 
     public Optional<Task> task(String id) {
@@ -90,23 +89,12 @@ public final class TaskService {
         return apply(next -> next.remove(id));
     }
 
-    public void syncPlayer(Player player) {
-        if (tab != null) {
-            synchronizer.sync(player, graph, tab);
-        }
-    }
-
     private Task apply(Function<TaskGraph, Task> change) {
         TaskGraph next = graph.copy();
         Task result = change.apply(next);
         store.save(next);
         graph = next;
-        refresh();
+        onChange.accept(graph);
         return result;
-    }
-
-    private void refresh() {
-        tab = renderer.render(graph);
-        synchronizer.syncOnlinePlayers(graph, tab);
     }
 }
