@@ -1,0 +1,12 @@
+name: TaskGraph
+version: '${version}'
+main: dev.taskgraph.TaskGraphPlugin
+description: Communal task dependency graph shown in the vanilla advancements screen
+api-version: '26.3'
+
+dependencies:
+  server:
+    UltimateAdvancementAPI:
+      load: BEFORE
+      required: true
+      join-classpath: true
