@@ -157,6 +157,20 @@ public final class TaskGraph {
         return replace(task.withDependencies(dependencies));
     }
 
+    /**
+     * Removes a dependency, keeping the order of the rest. Removing the visual parent makes the next
+     * dependency the new parent; with none left, the task hangs from the root again.
+     */
+    public Task removeDependency(String id, String dependencyId) {
+        Task task = require(id);
+        if (!task.dependencies().contains(dependencyId)) {
+            throw new TaskGraphException(Reason.NOT_A_DEPENDENCY, id, List.of(dependencyId));
+        }
+        List<String> dependencies = new ArrayList<>(task.dependencies());
+        dependencies.remove(dependencyId);
+        return replace(task.withDependencies(dependencies));
+    }
+
     /** Assigns a task that is free or already assigned to the same player. */
     public Task assign(String id, PlayerRef assignee) {
         return assign(id, assignee, false);

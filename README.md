@@ -61,6 +61,7 @@ Jugadores: **A** y **B**.
 - [ ] **Sin toasts ni anuncios al entrar o reconstruir.** Con tareas ya resueltas, B sale y vuelve a entrar: no aparece ningún toast ni mensaje de logro en el chat. Lo mismo cuando A edita cualquier tarea (`desc`, `asignar`) y la pestaña se reconstruye.
 - [ ] **`/tarea resolver` anuncia una sola vez.** A resuelve una tarea: A y B ven un único mensaje "✔ A resolvió la tarea ...", sin el anuncio de logro vanilla, y la tarea aparece completada para los dos.
 - [ ] **Revocación con jugador offline.** A resuelve "Jardín" (sin dependencias) y B la ve completada. B sale. A la borra con `/tarea borrar Jardín` y la vuelve a crear con `/tarea crear Jardín`. B entra: "Jardín" aparece **pendiente**, no completada.
+- [ ] **Quitar dependencias.** Con "Horno" dependiendo de "Piedra" y "Madera": `/tarea quitardep Horno Piedra` mueve "Horno" a colgar de "Madera" en la pestaña, y `/tarea quitardep Horno Madera` lo deja colgando del raíz. Tab en el segundo argumento sugiere solo las dependencias de "Horno".
 - [ ] **Permisos.** En la consola, `op A` (B queda sin op). B crea "Silla" y A crea "Mesa".
   - B no puede borrar "Mesa"; sí puede borrar "Silla". A, como admin, puede borrar cualquiera.
   - B se asigna "Mesa"; A no puede soltarla salvo como admin, y `/tarea asignar Mesa` de A la reasigna avisando quién la tenía.
@@ -89,6 +90,7 @@ Las tareas se nombran por su **título**, que es único: no distingue mayúscula
 | `/tarea renombrar "<título>" <nuevo título>` | Cambia el título. El estado, las dependencias y el progreso se conservan. |
 | `/tarea desc "<título>" <texto>` | Cambia la descripción. |
 | `/tarea depende "<título>" <dependencia>` | Hace que la tarea dependa de otra. Se rechaza si crea un ciclo. La primera dependencia es el padre visual; las siguientes se listan como "También requiere". |
+| `/tarea quitardep "<título>" <dependencia>` | Quita una dependencia. Si era el padre visual, la siguiente pasa a serlo; sin dependencias, la tarea vuelve a colgar del raíz. Tab sugiere solo las dependencias de esa tarea. |
 | `/tarea asignar <título>` | Te asigna la tarea. Si ya está asignada a otra persona se rechaza: esa persona la suelta o un admin la reasigna. |
 | `/tarea soltar <título>` | Quita la asignación. Solo quien la tiene asignada o un admin. |
 | `/tarea resolver <título>` | Marca la tarea como resuelta para todos. Requiere que todas sus dependencias estén resueltas. |
