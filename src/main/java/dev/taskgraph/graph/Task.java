@@ -7,6 +7,8 @@ import java.util.Optional;
 /**
  * Immutable snapshot of a task. {@link TaskGraph} replaces instances on every change.
  *
+ * @param id           internal id generated from the title at creation; never shown to players
+ * @param title        what players see and type; unique ignoring case, accents and spacing
  * @param icon         namespaced material key, e.g. {@code minecraft:diamond}
  * @param dependencies ids this task depends on, in insertion order; the first one is the visual parent
  * @param assignee     assigned player, or {@code null} when nobody is assigned
@@ -44,6 +46,10 @@ public record Task(
     /** Dependencies other than the visual parent, listed in the advancement description. */
     public List<String> extraRequirements() {
         return dependencies.isEmpty() ? List.of() : dependencies.subList(1, dependencies.size());
+    }
+
+    Task withTitle(String newTitle) {
+        return new Task(id, newTitle, description, icon, dependencies, assignee, resolved);
     }
 
     Task withDescription(String newDescription) {

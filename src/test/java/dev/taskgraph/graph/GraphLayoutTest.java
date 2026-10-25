@@ -22,7 +22,7 @@ class GraphLayoutTest {
 
     private void createAll(String... ids) {
         for (String id : ids) {
-            graph.create(id, "Title " + id, "minecraft:stone");
+            graph.create(id, "minecraft:stone");
         }
     }
 

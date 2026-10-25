@@ -28,9 +28,10 @@ class TaskGraphTest {
         graph = new TaskGraph();
     }
 
+    // Simple lowercase titles produce the same internal id, so tests can refer to tasks by title.
     private void createAll(String... ids) {
         for (String id : ids) {
-            graph.create(id, "Title " + id, ICON);
+            assertEquals(id, graph.create(id, ICON).id());
         }
     }
 
@@ -45,34 +46,115 @@ class TaskGraphTest {
 
         @Test
         void storesTaskWithDefaults() {
-            Task task = graph.create("farm", "  Build a farm ", "minecraft:wheat");
+            Task task = graph.create("  Build   a farm ", "minecraft:wheat");
 
+            assertEquals("build_a_farm", task.id());
             assertEquals("Build a farm", task.title());
             assertEquals("", task.description());
             assertEquals("minecraft:wheat", task.icon());
             assertTrue(task.dependencies().isEmpty());
             assertTrue(task.assigneeOptional().isEmpty());
             assertFalse(task.resolved());
-            assertEquals(task, graph.get("farm").orElseThrow());
-        }
-
-        @Test
-        void rejectsDuplicateId() {
-            createAll("farm");
-
-            assertRejected(Reason.DUPLICATE_ID, () -> graph.create("farm", "Other", ICON));
+            assertEquals(task, graph.get("build_a_farm").orElseThrow());
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"", "Farm", "my-farm", "a.b", "with space", "abcdefghijklmnopqrstuvwxyz0123456"})
-        void rejectsInvalidId(String id) {
-            assertRejected(Reason.INVALID_ID, () -> graph.create(id, "Title", ICON));
-            assertTrue(graph.isEmpty());
+        @ValueSource(strings = {"farm", "FARM", " Farm ", "fárm"})
+        void rejectsDuplicateTitleIgnoringCaseAccentsAndSpaces(String title) {
+            graph.create("Farm", ICON);
+
+            TaskGraphException exception = assertRejected(Reason.DUPLICATE_TITLE, () -> graph.create(title, ICON));
+            assertEquals("farm", exception.taskId());
+            assertEquals(1, graph.size());
         }
 
         @Test
         void rejectsBlankTitle() {
-            assertRejected(Reason.INVALID_TITLE, () -> graph.create("farm", "   ", ICON));
+            assertRejected(Reason.INVALID_TITLE, () -> graph.create("   ", ICON));
+        }
+
+        @Test
+        void derivesIdFromTitle() {
+            assertEquals("jardin_de_la_nandu", graph.create("Jardín de la Ñandú", ICON).id());
+            assertEquals("mesa_de_trabajo", graph.create("¡Mesa de trabajo!", ICON).id());
+        }
+
+        @Test
+        void addsSuffixWhenIdIsTaken() {
+            graph.create("Mesa", ICON);
+
+            // Different titles that slug to the same id.
+            assertEquals("mesa_2", graph.create("Mesa!", ICON).id());
+            assertEquals("mesa_3", graph.create("¿Mesa?", ICON).id());
+        }
+
+        @Test
+        void fallsBackToTareaWhenTitleHasNoIdCharacters() {
+            assertEquals("tarea", graph.create("!!!", ICON).id());
+            assertEquals("tarea_2", graph.create("¿?", ICON).id());
+            assertEquals("tarea_3", graph.create("中文", ICON).id());
+        }
+
+        @Test
+        void truncatesLongIdsKeepingTheSuffix() {
+            String title = "una tarea con un titulo muy pero muy largo";
+            Task first = graph.create(title, ICON);
+            Task second = graph.create(title + "!", ICON);
+
+            assertEquals(32, first.id().length());
+            assertTrue(second.id().endsWith("_2"));
+            assertTrue(second.id().length() <= 32);
+            assertFalse(second.id().contains("__"));
+        }
+    }
+
+    @Nested
+    class Rename {
+
+        @Test
+        void changesTitleAndKeepsId() {
+            Task task = graph.create("Mesa", ICON);
+
+            Task renamed = graph.rename(task.id(), "  Mesa de   trabajo ");
+
+            assertEquals("mesa", renamed.id());
+            assertEquals("Mesa de trabajo", renamed.title());
+            assertTrue(graph.findByTitle("mesa de trabajo").isPresent());
+            assertTrue(graph.findByTitle("Mesa").isEmpty());
+        }
+
+        @Test
+        void allowsChangingOnlyCaseOrAccents() {
+            Task task = graph.create("jardin", ICON);
+
+            assertEquals("Jardín", graph.rename(task.id(), "Jardín").title());
+        }
+
+        @Test
+        void rejectsTitleOfAnotherTask() {
+            createAll("a", "b");
+
+            assertRejected(Reason.DUPLICATE_TITLE, () -> graph.rename("a", "B"));
+            assertEquals("a", graph.get("a").orElseThrow().title());
+        }
+
+        @Test
+        void rejectsBlankTitle() {
+            createAll("a");
+
+            assertRejected(Reason.INVALID_TITLE, () -> graph.rename("a", " "));
+        }
+    }
+
+    @Nested
+    class FindByTitle {
+
+        @Test
+        void ignoresCaseAccentsAndSpaces() {
+            Task task = graph.create("Jardín de la Ñandú", ICON);
+
+            assertEquals(task, graph.findByTitle("  jardin  de LA nandu").orElseThrow());
+            assertTrue(graph.findByTitle("jardin").isEmpty());
         }
     }
 
@@ -239,15 +321,15 @@ class TaskGraphTest {
         }
 
         @Test
-        void remembersRemovedIdsUntilCreatedAgain() {
+        void remembersRemovedIdsAndNeverReusesThem() {
             createAll("a", "b");
             graph.remove("b");
             graph.remove("a");
 
             assertEquals(List.of("b", "a"), List.copyOf(graph.removedIds()));
 
-            graph.create("a", "Again", ICON);
-            assertEquals(Set.of("b"), graph.removedIds());
+            assertEquals("a_2", graph.create("a", ICON).id());
+            assertEquals(List.of("b", "a"), List.copyOf(graph.removedIds()));
         }
 
         @Test
@@ -269,7 +351,7 @@ class TaskGraphTest {
             graph.remove("b");
             TaskGraph copy = graph.copy();
 
-            copy.create("c", "C", ICON);
+            copy.create("c", ICON);
             copy.resolve("a");
             copy.remove("c");
 
@@ -364,6 +446,18 @@ class TaskGraphTest {
         @Test
         void rejectsDuplicateIds() {
             assertRejected(Reason.DUPLICATE_ID, () -> TaskGraph.of(List.of(task("a", false), task("a", false))));
+        }
+
+        @Test
+        void disambiguatesRepeatedTitlesFromOlderData() {
+            Task first = new Task("4", "Mesa", "", ICON, List.of(), null, false);
+            Task second = new Task("mesa", "mesa", "", ICON, List.of(), null, false);
+
+            TaskGraph loaded = TaskGraph.of(List.of(first, second));
+
+            assertEquals("Mesa", loaded.get("4").orElseThrow().title());
+            assertEquals("mesa (mesa)", loaded.get("mesa").orElseThrow().title());
+            assertEquals("mesa", loaded.findByTitle("mesa (mesa)").orElseThrow().id());
         }
 
         @Test

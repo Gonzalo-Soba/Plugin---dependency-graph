@@ -43,6 +43,10 @@ public final class TaskService {
         return graph.get(id);
     }
 
+    public Optional<Task> findByTitle(String title) {
+        return graph.findByTitle(title);
+    }
+
     public List<Task> tasks() {
         return graph.tasks();
     }
@@ -52,8 +56,12 @@ public final class TaskService {
         return graph.copy();
     }
 
-    public Task create(String id, String title, String icon) {
-        return apply(next -> next.create(id, title, icon));
+    public Task create(String title, String icon) {
+        return apply(next -> next.create(title, icon));
+    }
+
+    public Task rename(String id, String newTitle) {
+        return apply(next -> next.rename(id, newTitle));
     }
 
     public Task describe(String id, String description) {
