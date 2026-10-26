@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dev.taskgraph"
-version = "0.2.0"
+version = "0.2.1"
 
 // The dev server runs the same Paper build the plugin compiles against.
 val minecraftVersion = "26.3"
@@ -70,6 +70,12 @@ tasks.processResources {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.jar {
+    from("LICENSE") {
+        into("META-INF")
+    }
 }
 
 // Copies the sources jars of the compile-time APIs to build/api-sources for signature lookups.

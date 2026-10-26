@@ -2,7 +2,7 @@
 
 Plugin de Paper para organizar las tareas comunales de un servidor de Minecraft. Las tareas forman un grafo de dependencias que se muestra en la pantalla de logros (advancements) vanilla, así que los jugadores no necesitan mods en el cliente.
 
-> Versión actual: **0.2.0**.
+> Versión actual: **0.2.1**.
 
 ## Cómo se ve
 
@@ -16,7 +16,7 @@ Plugin de Paper para organizar las tareas comunales de un servidor de Minecraft.
 
 - Servidor [Paper](https://papermc.io/) para Minecraft Java 26.3
 - Java 25
-- Plugin [UltimateAdvancementAPI](https://modrinth.com/plugin/ultimateadvancementapi) **3.0.0-beta-4** instalado en el servidor
+- Plugin [UltimateAdvancementAPI](https://modrinth.com/plugin/ultimateadvancementapi/versions) **3.0.0-beta-4** instalado en el servidor. En Modrinth está marcada como *beta*: la versión que aparece primero (2.x) **no sirve**.
 
 ## Compilar
 
@@ -31,6 +31,14 @@ En Windows: `gradlew.bat build`. El jar queda en `build/libs/`.
 1. Descargar `UltimateAdvancementAPI-Plugin-3.0.0-beta-4.jar` desde Modrinth y copiarlo a la carpeta `plugins/` del servidor.
 2. Copiar el jar de `build/libs/` a la misma carpeta `plugins/`.
 3. Reiniciar el servidor.
+
+### Si el plugin no arranca
+
+| Mensaje en el log | Qué pasa | Solución |
+|---|---|---|
+| `Unknown/missing dependency plugins: [UltimateAdvancementAPI]` | Falta UltimateAdvancementAPI | Instalar la 3.0.0-beta-4 y reiniciar |
+| `TaskGraph needs UltimateAdvancementAPI 3.0.0-beta-4, but 2.8.2 is installed` | Está instalada otra versión, en general la 2.x | Reemplazar el jar por el de la 3.0.0-beta-4 (no el "Mojang-Mapped-Legacy") y reiniciar |
+| `Could not load .../tasks.json, disabling TaskGraph` | El archivo de tareas está dañado | Ver [Datos](#datos) |
 
 ## Prueba local
 
@@ -138,3 +146,7 @@ Las tareas se nombran por su **título**, que es único: no distingue mayúscula
 Todo lo demás (crear, renombrar, describir, agregar y quitar dependencias, asignarse tareas libres, resolver y ver info) está abierto a todos los jugadores. La consola del servidor cuenta como admin. Las tareas creadas antes de que se guardara el creador solo las puede borrar un admin.
 
 Cada cambio se guarda en el JSON y regenera la pestaña de logros para todos los jugadores online.
+
+## Licencia
+
+[MIT](LICENSE). UltimateAdvancementAPI es un plugin aparte, con su propia licencia (LGPL), y no viene incluido en el jar de TaskGraph.
