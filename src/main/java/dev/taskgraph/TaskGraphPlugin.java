@@ -17,6 +17,7 @@ import dev.taskgraph.storage.TaskStoreException;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -26,6 +27,12 @@ public final class TaskGraphPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        // Must run before any UltimateAdvancementAPI class is touched: a 2.x install fails with NoClassDefFoundError.
+        if (!hasSupportedUaapi()) {
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         JsonTaskStore store = new JsonTaskStore(getDataPath().resolve("tasks.json"));
         TaskGraph graph;
         try {
@@ -54,6 +61,17 @@ public final class TaskGraphPlugin extends JavaPlugin {
             event.registrar().register(command.build(), TaskCommand.DESCRIPTION, List.of());
             event.registrar().register(tasksCommand.build(), TasksCommand.DESCRIPTION, List.of());
         });
+    }
+
+    private boolean hasSupportedUaapi() {
+        Plugin uaapi = getServer().getPluginManager().getPlugin(UaapiVersion.PLUGIN_NAME);
+        // paper-plugin.yml marks it as required, so Paper already refuses to load without it; this guards the version.
+        String installed = uaapi == null ? "no version" : uaapi.getPluginMeta().getVersion();
+        if (UaapiVersion.isSupported(installed)) {
+            return true;
+        }
+        getLogger().severe(UaapiVersion.unsupportedMessage(installed));
+        return false;
     }
 
     @Override
