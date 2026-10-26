@@ -146,3 +146,7 @@ Las tareas se nombran por su **título**, que es único: no distingue mayúscula
 Todo lo demás (crear, renombrar, describir, agregar y quitar dependencias, asignarse tareas libres, resolver y ver info) está abierto a todos los jugadores. La consola del servidor cuenta como admin. Las tareas creadas antes de que se guardara el creador solo las puede borrar un admin.
 
 Cada cambio se guarda en el JSON y regenera la pestaña de logros para todos los jugadores online.
+
+## Licencia
+
+[MIT](LICENSE). UltimateAdvancementAPI es un plugin aparte, con su propia licencia (LGPL), y no viene incluido en el jar de TaskGraph.

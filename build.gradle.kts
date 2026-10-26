@@ -72,6 +72,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.jar {
+    from("LICENSE") {
+        into("META-INF")
+    }
+}
+
 // Copies the sources jars of the compile-time APIs to build/api-sources for signature lookups.
 tasks.register<Sync>("downloadApiSources") {
     from(apiSources)
